@@ -54,14 +54,15 @@ PY
 
 api_pid=""
 worker_pid=""
+frontend_pid=""
 cleanup() {
     trap - EXIT INT TERM
-    for pid in "$api_pid" "$worker_pid"; do
+    for pid in "$api_pid" "$worker_pid" "$frontend_pid"; do
         if [[ -n "$pid" ]]; then
             kill "$pid" 2>/dev/null || true
         fi
     done
-    for pid in "$api_pid" "$worker_pid"; do
+    for pid in "$api_pid" "$worker_pid" "$frontend_pid"; do
         if [[ -n "$pid" ]]; then
             wait "$pid" 2>/dev/null || true
         fi
@@ -100,14 +101,29 @@ if ! kill -0 "$api_pid" 2>/dev/null || ! kill -0 "$worker_pid" 2>/dev/null; then
     exit 1
 fi
 
-URL="http://127.0.0.1:$PORT/docs"
+DASHBOARD_URL="http://localhost:5173"
+if [[ -d "$ROOT/frontend" ]] && command -v npm >/dev/null 2>&1; then
+    if [[ ! -d "$ROOT/frontend/node_modules" ]]; then
+        echo "Установка зависимостей дашборда…"
+        (cd "$ROOT/frontend" && npm install)
+    fi
+    echo "Запуск дашборда на $DASHBOARD_URL…"
+    (cd "$ROOT/frontend" && npm run dev -- --host 127.0.0.1 --port 5173) &
+    frontend_pid=$!
+fi
+
 echo
-echo "Панель API: $URL"
-echo "API и обработчик задач запущены. Для остановки нажмите Ctrl+C."
-echo "Дизайнерский дашборд подключается отдельно; сейчас открывается Swagger."
+echo "API:       http://127.0.0.1:$PORT"
+echo "Swagger:   http://127.0.0.1:$PORT/docs"
+echo "Дашборд:   $DASHBOARD_URL"
+echo "Сервисы запущены. Для остановки нажмите Ctrl+C."
 
 if [[ "$OPEN_BROWSER" == "1" ]]; then
-    "$PYTHON" - "$URL" <<'PY' || true
+    TARGET_URL="$DASHBOARD_URL"
+    if [[ -z "$frontend_pid" ]]; then
+        TARGET_URL="http://127.0.0.1:$PORT/docs"
+    fi
+    "$PYTHON" - "$TARGET_URL" <<'PY' || true
 import sys
 import webbrowser
 

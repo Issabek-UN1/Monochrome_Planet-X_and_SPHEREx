@@ -9,19 +9,19 @@
 
 ## Быстрый запуск
 
-Нужны Python 3.12–3.14 и [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Нужны Python 3.12–3.14, [uv](https://docs.astral.sh/uv/getting-started/installation/) и Node.js.
 Запускайте команды из корня репозитория.
 
-Для запуска одной командой в **Git Bash на Windows, Linux или macOS**:
+### Вариант 1 (Windows, в 1 клик):
+Дважды кликните по файлу **`start-dashboard.bat`** (или выполните в PowerShell `.\start-dashboard.ps1`).
+Скрипт автоматически синхронизирует зависимости, поднимет Backend API (порт 8000), Worker обработки задач, запустит дашборд и откроет его в браузере на [http://localhost:5173](http://localhost:5173).
 
+### Вариант 2 (Git Bash на Windows, Linux или macOS):
 ```bash
 bash start.sh
 ```
-
-Скрипт подготовит окружение, создаст `.env`, если его ещё нет, запустит API и worker
-и откроет текущую панель Swagger в браузере. Дизайнерский дашборд пока разрабатывается
-отдельно. Остановка обоих процессов — `Ctrl+C`.
-Другой порт: `PORT=8001 bash start.sh`; без браузера: `OPEN_BROWSER=0 bash start.sh`.
+Скрипт подготовит окружение, создаст `.env`, если его ещё нет, запустит API, worker и дашборд и откроет [http://localhost:5173](http://localhost:5173) в браузере. Остановка всех процессов — `Ctrl+C`.
+Другой порт API: `PORT=8001 bash start.sh`; без браузера: `OPEN_BROWSER=0 bash start.sh`.
 Для повторного запуска без установки библиотек: `SKIP_SYNC=1 bash start.sh`.
 
 Ручной запуск:
