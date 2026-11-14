@@ -1,243 +1,401 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-
-interface CelestialSphereProps {
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { CURATED_TARGETS, type EnhancedTarget } from '../../api/client'
+import { formatDec, formatRA } from '../../utils/astronomy'
+import { playTone } from '../../utils/audio'
+interface Props {
   targetRa?: number
   targetDec?: number
   className?: string
+  target?: EnhancedTarget
+  onSelect?: (target: EnhancedTarget) => void
+  semiMajor?: number
+  inclination?: number
+  animated?: boolean
 }
-
-export const CelestialSphereCanvas: React.FC<CelestialSphereProps> = ({
-  targetRa = 133.795,
-  targetDec = -7.245,
+function vector(ra: number, dec: number, radius = 2.8) {
+  const alpha = THREE.MathUtils.degToRad(ra),
+    delta = THREE.MathUtils.degToRad(dec)
+  return new THREE.Vector3(
+    radius * Math.cos(delta) * Math.cos(alpha),
+    radius * Math.sin(delta),
+    -radius * Math.cos(delta) * Math.sin(alpha),
+  )
+}
+export const CelestialSphereCanvas = ({
+  targetRa,
+  targetDec,
   className = '',
-}) => {
-  const mountRef = useRef<HTMLDivElement>(null)
-  const targetCoordsRef = useRef({ ra: targetRa, dec: targetDec })
-
+  target,
+  onSelect,
+  semiMajor = 600,
+  inclination = 30,
+  animated = true,
+}: Props) => {
+  const host = useRef<HTMLDivElement>(null)
+  const selection = useRef({
+    ra: target?.ra ?? targetRa ?? 133.7951,
+    dec: target?.dec ?? targetDec ?? -7.2451,
+  })
+  const parameters = useRef({ semiMajor, inclination, animated })
+  const callback = useRef(onSelect)
+  const [fallback, setFallback] = useState(false)
+  const [readout, setReadout] = useState<{ ra: number; dec: number } | null>(
+    null,
+  )
   useEffect(() => {
-    targetCoordsRef.current = { ra: targetRa, dec: targetDec }
-  }, [targetRa, targetDec])
-
-  useEffect(() => {
-    const container = mountRef.current
-    if (!container) return
-
-    let animationFrameId: number
-    const width = container.clientWidth
-    const height = container.clientHeight
-
-    // 1. Scene, Camera, Renderer
-    const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x030305, 0.035)
-
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
-    camera.position.set(0, 3.2, 9.2)
-    camera.lookAt(0, -1.0, 0)
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setSize(width, height)
-    renderer.setClearColor(0x030305, 0)
-    container.appendChild(renderer.domElement)
-
-    // 2. Starfield
-    const starCount = 1400
-    const starGeometry = new THREE.BufferGeometry()
-    const starPositions = new Float32Array(starCount * 3)
-
-    for (let i = 0; i < starCount; i++) {
-      starPositions[i * 3] = (Math.random() - 0.5) * 50
-      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 40
-      starPositions[i * 3 + 2] = (Math.random() - 0.5) * 35 - 5
+    selection.current = {
+      ra: target?.ra ?? targetRa ?? 133.7951,
+      dec: target?.dec ?? targetDec ?? -7.2451,
     }
-
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
-
-    const starMaterial = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 0.045,
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending,
-    })
-    const starField = new THREE.Points(starGeometry, starMaterial)
-    scene.add(starField)
-
-    // 3. SPHEREx Celestial Sphere (Wireframe Grid)
-    const sphereRadius = 4.4
-    const sphereGeo = new THREE.SphereGeometry(sphereRadius, 36, 18)
-    const edges = new THREE.EdgesGeometry(sphereGeo)
-    const sphereMat = new THREE.LineBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.18,
-    })
-    const wireframeSphere = new THREE.LineSegments(edges, sphereMat)
-    wireframeSphere.position.set(0, -3.9, 0)
-    scene.add(wireframeSphere)
-
-    // Dark core occlusion
-    const coreGeo = new THREE.SphereGeometry(sphereRadius * 0.992, 32, 16)
-    const coreMat = new THREE.MeshBasicMaterial({
-      color: 0x04060b,
-      transparent: true,
-      opacity: 0.94,
-    })
-    const coreMesh = new THREE.Mesh(coreGeo, coreMat)
-    wireframeSphere.add(coreMesh)
-
-    // Celestial Equator (Bright ring at Dec = 0)
-    const equatorGeo = new THREE.RingGeometry(sphereRadius - 0.01, sphereRadius + 0.02, 72)
-    const equatorMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.45,
-    })
-    const equatorRing = new THREE.Mesh(equatorGeo, equatorMat)
-    equatorRing.rotation.x = Math.PI / 2
-    wireframeSphere.add(equatorRing)
-
-    // 4. Planet X Theoretical Tilted Orbit (Saturn-like concentric elliptical rings)
-    const ringGroup = new THREE.Group()
-    ringGroup.position.set(0, -3.9, 0)
-    ringGroup.rotation.x = Math.PI / 3.8
-    ringGroup.rotation.y = Math.PI / 6.5
-
-    const ringRadii = [5.4, 5.8, 6.3, 6.9, 7.6, 8.4]
-    ringRadii.forEach((r, idx) => {
-      const ringGeo = new THREE.RingGeometry(r, r + 0.025, 96)
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: idx % 2 === 0 ? 0xff6b35 : 0x38bdf8,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: idx === 1 || idx === 3 ? 0.38 : 0.14,
+  }, [target, targetRa, targetDec])
+  useEffect(() => {
+    parameters.current = { semiMajor, inclination, animated }
+    callback.current = onSelect
+  }, [semiMajor, inclination, animated, onSelect])
+  useEffect(() => {
+    const element = host.current
+    if (!element) return
+    let renderer: THREE.WebGLRenderer
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: 'low-power',
       })
-      const ringMesh = new THREE.Mesh(ringGeo, ringMat)
-      ringMesh.rotation.x = Math.PI / 2
-      ringGroup.add(ringMesh)
-    })
-    scene.add(ringGroup)
-
-    // 5. Active Target Pulsing Beacon on Sphere Surface
-    const beaconGeo = new THREE.SphereGeometry(0.12, 16, 16)
-    const beaconMat = new THREE.MeshBasicMaterial({
-      color: 0xff6b35,
-      transparent: true,
-      opacity: 0.9,
-    })
-    const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat)
-
-    // Beacon outer glow halo
-    const haloGeo = new THREE.RingGeometry(0.16, 0.28, 32)
-    const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xf59e0b,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.7,
-    })
-    const haloMesh = new THREE.Mesh(haloGeo, haloMat)
-    beaconMesh.add(haloMesh)
-    wireframeSphere.add(beaconMesh)
-
-    // Target pointer line from center to surface
-    const pointerGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0, 0, sphereRadius * 1.15),
-    ])
-    const pointerMat = new THREE.LineDashedMaterial({
-      color: 0xf59e0b,
-      dashSize: 0.2,
-      gapSize: 0.1,
-      transparent: true,
-      opacity: 0.6,
-    })
-    const pointerLine = new THREE.Line(pointerGeo, pointerMat)
-    pointerLine.computeLineDistances()
-    wireframeSphere.add(pointerLine)
-
-    // 6. Interaction & Animation State
-    let mouseX = 0
-    let mouseY = 0
-    let targetMouseX = 0
-    let targetMouseY = 0
-
-    const handleMouseMove = (event: MouseEvent) => {
-      const rect = container.getBoundingClientRect()
-      mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1
-      mouseY = -(((event.clientY - rect.top) / rect.height) * 2 - 1)
+    } catch {
+      queueMicrotask(() => setFallback(true))
+      return
     }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    const clock = new THREE.Clock()
-
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate)
-      const elapsedTime = clock.getElapsedTime()
-
-      // Damped mouse movement
-      targetMouseX += (mouseX - targetMouseX) * 0.05
-      targetMouseY += (mouseY - targetMouseY) * 0.05
-
-      // Convert target RA & Dec to position on sphere surface
-      const radRa = (targetCoordsRef.current.ra * Math.PI) / 180
-      const radDec = (targetCoordsRef.current.dec * Math.PI) / 180
-
-      const beaconX = sphereRadius * Math.cos(radDec) * Math.sin(radRa)
-      const beaconY = sphereRadius * Math.sin(radDec)
-      const beaconZ = sphereRadius * Math.cos(radDec) * Math.cos(radRa)
-
-      beaconMesh.position.set(beaconX, beaconY, beaconZ)
-      haloMesh.lookAt(camera.position)
-
-      // Pointer line points toward beacon
-      pointerLine.lookAt(beaconX, beaconY, beaconZ)
-
-      // Pulse the beacon
-      const pulse = 1 + Math.sin(elapsedTime * 6) * 0.25
-      beaconMesh.scale.set(pulse, pulse, pulse)
-
-      // Sphere rotation with continuous subtle spin + orientation toward target
-      wireframeSphere.rotation.y = elapsedTime * 0.03 + targetMouseX * 0.2
-      wireframeSphere.rotation.x = targetMouseY * 0.1
-
-      ringGroup.rotation.z = -elapsedTime * 0.015 + targetMouseX * 0.15
-      starField.rotation.y = elapsedTime * 0.004
-
-      renderer.render(scene, camera)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75))
+    renderer.setClearColor(0x06080d, 0)
+    renderer.domElement.setAttribute(
+      'aria-label',
+      'Interactive ICRS sky schematic. Drag to orbit, scroll to zoom; targets also available as buttons below.',
+    )
+    renderer.domElement.setAttribute('role', 'img')
+    element.appendChild(renderer.domElement)
+    const scene = new THREE.Scene(),
+      camera = new THREE.PerspectiveCamera(43, 1, 0.05, 100)
+    camera.position.copy(vector(selection.current.ra, selection.current.dec, 9))
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.06
+    controls.enablePan = false
+    controls.minDistance = 4.5
+    controls.maxDistance = 13
+    const sphere = new THREE.Group()
+    scene.add(sphere)
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.16,
+    })
+    function line(
+      points: THREE.Vector3[],
+      material = lineMaterial,
+      parent: THREE.Object3D = sphere,
+    ) {
+      const object = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(points),
+        material,
+      )
+      parent.add(object)
+      return object
     }
-
-    animate()
-
-    // 7. Resize handling
-    const handleResize = () => {
-      if (!container) return
-      const newWidth = container.clientWidth
-      const newHeight = container.clientHeight
-      camera.aspect = newWidth / newHeight
-      camera.updateProjectionMatrix()
-      renderer.setSize(newWidth, newHeight)
+    for (let ra = 0; ra < 360; ra += 15)
+      line(Array.from({ length: 91 }, (_, i) => vector(ra, -90 + i * 2)))
+    for (let dec = -75; dec <= 75; dec += 15)
+      line(Array.from({ length: 181 }, (_, i) => vector(i * 2, dec)))
+    line(
+      Array.from({ length: 181 }, (_, i) => vector(i * 2, 0)),
+      new THREE.LineBasicMaterial({
+        color: 0x00f0ff,
+        transparent: true,
+        opacity: 0.55,
+      }),
+    )
+    function plane(pole: THREE.Vector3, color: number) {
+      const group = new THREE.Group()
+      group.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        pole.normalize(),
+      )
+      scene.add(group)
+      line(
+        Array.from(
+          { length: 181 },
+          (_, i) =>
+            new THREE.Vector3(
+              Math.cos((i * Math.PI) / 90) * 2.83,
+              0,
+              Math.sin((i * Math.PI) / 90) * 2.83,
+            ),
+        ),
+        new THREE.LineBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.65,
+        }),
+        group,
+      )
     }
-
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('resize', handleResize)
-      cancelAnimationFrame(animationFrameId)
-      renderer.dispose()
-      if (renderer.domElement && container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement)
+    plane(vector(270, 66.5607, 1), 0x00f0ff)
+    plane(vector(192.85948, 27.12825, 1), 0xa855f7)
+    const points = new Float32Array(1800)
+    let seed = 1977
+    const random = () => {
+      seed = (seed * 16807) % 2147483647
+      return seed / 2147483647
+    }
+    for (let i = 0; i < points.length; i += 3) {
+      const p = vector(
+        random() * 360,
+        (Math.asin(random() * 2 - 1) * 180) / Math.PI,
+        17 + random() * 8,
+      )
+      points[i] = p.x
+      points[i + 1] = p.y
+      points[i + 2] = p.z
+    }
+    const stars = new THREE.BufferGeometry()
+    stars.setAttribute('position', new THREE.BufferAttribute(points, 3))
+    scene.add(
+      new THREE.Points(
+        stars,
+        new THREE.PointsMaterial({
+          size: 0.025,
+          color: 0xa5b5c5,
+          transparent: true,
+          opacity: 0.65,
+        }),
+      ),
+    )
+    const beacons: THREE.Mesh[] = []
+    CURATED_TARGETS.forEach((item) => {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.065, 12, 12),
+        new THREE.MeshBasicMaterial({
+          color: item.id === 'wise-0855' ? 0xff7700 : 0x00f0ff,
+        }),
+      )
+      mesh.position.copy(vector(item.ra, item.dec, 2.85))
+      mesh.userData.targetId = item.id
+      scene.add(mesh)
+      beacons.push(mesh)
+    })
+    const reticle = new THREE.Mesh(
+      new THREE.TorusGeometry(0.16, 0.006, 6, 48),
+      new THREE.MeshBasicMaterial({ color: 0xff7700 }),
+    )
+    scene.add(reticle)
+    const orbitGroup = new THREE.Group()
+    scene.add(orbitGroup)
+    function orbitalPoint(anomaly: number) {
+      return new THREE.Vector3(
+        3.45 * (Math.cos(anomaly) - 0.65),
+        0,
+        3.45 * Math.sqrt(1 - 0.65 ** 2) * Math.sin(anomaly),
+      )
+    }
+    line(
+      Array.from({ length: 241 }, (_, i) => orbitalPoint((i * Math.PI) / 120)),
+      new THREE.LineBasicMaterial({
+        color: 0xff7700,
+        transparent: true,
+        opacity: 0.6,
+      }),
+      orbitGroup,
+    )
+    const tracer = new THREE.Mesh(
+      new THREE.SphereGeometry(0.06, 10, 10),
+      new THREE.MeshBasicMaterial({ color: 0xffb15c }),
+    )
+    orbitGroup.add(tracer)
+    const flow = Array.from({ length: 16 }, (_, i) => {
+      const p = new THREE.Mesh(
+        new THREE.SphereGeometry(0.016, 6, 6),
+        new THREE.MeshBasicMaterial({
+          color: 0xff7700,
+          transparent: true,
+          opacity: 0.8 - i * 0.04,
+        }),
+      )
+      orbitGroup.add(p)
+      return p
+    })
+    const raycaster = new THREE.Raycaster(),
+      mouse = new THREE.Vector2(),
+      raySphere = new THREE.Sphere(new THREE.Vector3(), 2.8)
+    let dragStart = { x: 0, y: 0 },
+      hoverId = '',
+      lastReadout = 0,
+      previousSelection = '',
+      transition = false
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const pointer = (event: PointerEvent) => {
+      const bounds = renderer.domElement.getBoundingClientRect()
+      mouse.set(
+        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+        (-(event.clientY - bounds.top) / bounds.height) * 2 + 1,
+      )
+      raycaster.setFromCamera(mouse, camera)
+      const hit = raycaster.intersectObjects(beacons)[0]
+      const id = hit?.object.userData.targetId as string | undefined
+      if (id && id !== hoverId) playTone('hover')
+      hoverId = id ?? ''
+      renderer.domElement.style.cursor = id ? 'pointer' : 'grab'
+      const point = raycaster.ray.intersectSphere(
+        raySphere,
+        new THREE.Vector3(),
+      )
+      if (point && performance.now() - lastReadout > 80) {
+        lastReadout = performance.now()
+        setReadout({
+          ra: ((Math.atan2(-point.z, point.x) * 180) / Math.PI + 360) % 360,
+          dec: (Math.asin(point.y / 2.8) * 180) / Math.PI,
+        })
       }
     }
+    const down = (event: PointerEvent) => {
+      dragStart = { x: event.clientX, y: event.clientY }
+      transition = false
+    }
+    const up = (event: PointerEvent) => {
+      if (
+        Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y) > 5
+      )
+        return
+      pointer(event)
+      const selected = CURATED_TARGETS.find((item) => item.id === hoverId)
+      if (selected) {
+        playTone('select')
+        callback.current?.(selected)
+      }
+    }
+    renderer.domElement.addEventListener('pointermove', pointer)
+    renderer.domElement.addEventListener('pointerdown', down)
+    renderer.domElement.addEventListener('pointerup', up)
+    const resize = () => {
+      const w = element.clientWidth,
+        h = element.clientHeight
+      if (!w || !h) return
+      renderer.setSize(w, h)
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+    }
+    const observer = new ResizeObserver(resize)
+    observer.observe(element)
+    resize()
+    let frame = 0,
+      phase = 0.8,
+      lastTime = 0
+    const animate = (time: number) => {
+      frame = requestAnimationFrame(animate)
+      const delta = lastTime ? Math.min(time - lastTime, 80) : 0
+      lastTime = time
+      if (document.hidden) return
+      const id = `${selection.current.ra}:${selection.current.dec}`
+      if (previousSelection !== id) {
+        previousSelection = id
+        transition = true
+      }
+      if (transition) {
+        const destination = vector(
+          selection.current.ra,
+          selection.current.dec,
+          8.8,
+        )
+        if (reduced.matches) camera.position.copy(destination)
+        else camera.position.lerp(destination, 0.045)
+        if (camera.position.distanceTo(destination) < 0.02 || reduced.matches)
+          transition = false
+      }
+      const selected = vector(selection.current.ra, selection.current.dec, 2.88)
+      reticle.position.copy(selected)
+      reticle.lookAt(camera.position)
+      orbitGroup.scale.setScalar(parameters.current.semiMajor / 600)
+      orbitGroup.rotation.x = THREE.MathUtils.degToRad(
+        parameters.current.inclination,
+      )
+      // Illustrative eccentric-anomaly flow, NOT an ephemeris or a predicted position.
+      if (!reduced.matches && parameters.current.animated)
+        phase += delta * 0.00015
+      tracer.position.copy(orbitalPoint(phase))
+      flow.forEach((particle, index) =>
+        particle.position.copy(orbitalPoint(phase - index * 0.025)),
+      )
+      controls.update()
+      renderer.render(scene, camera)
+    }
+    frame = requestAnimationFrame(animate)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      controls.dispose()
+      renderer.domElement.removeEventListener('pointermove', pointer)
+      renderer.domElement.removeEventListener('pointerdown', down)
+      renderer.domElement.removeEventListener('pointerup', up)
+      scene.traverse((object) => {
+        if (
+          object instanceof THREE.Mesh ||
+          object instanceof THREE.Line ||
+          object instanceof THREE.Points
+        ) {
+          object.geometry.dispose()
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material]
+          materials.forEach((material) => material.dispose())
+        }
+      })
+      renderer.dispose()
+      renderer.domElement.remove()
+    }
   }, [])
-
   return (
-    <div
-      ref={mountRef}
-      className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
-      style={{ zIndex: 0 }}
-    />
+    <div className={`celestial-container ${className}`}>
+      <div className="webgl-host" ref={host} />
+      {fallback && (
+        <div className="webgl-fallback">
+          <svg
+            viewBox="0 0 600 420"
+            aria-label="Static celestial reference grid"
+          >
+            <ellipse cx="300" cy="210" rx="185" ry="185" />
+            <ellipse cx="300" cy="210" rx="75" ry="185" />
+            <ellipse cx="300" cy="210" rx="145" ry="185" />
+            <ellipse cx="300" cy="210" rx="185" ry="70" />
+            <path d="M115 210H485M300 25V395" />
+          </svg>
+          <p>WebGL unavailable · use target controls below</p>
+        </div>
+      )}
+      <div className="viewport-label">
+        <span className="status-dot" />
+        ICRS CELESTIAL SCHEMATIC
+        <small>DECORATIVE STARS · NOT A SURVEY IMAGE</small>
+      </div>
+      <div className="viewport-coords">
+        <small>CURSOR / EQUATORIAL</small>
+        <span>{readout ? formatRA(readout.ra) : '—h —m —s'}</span>
+        <span>{readout ? formatDec(readout.dec) : '±—° —′ —″'}</span>
+      </div>
+      <div className="viewport-legend">
+        <span>
+          <i />
+          EQUATOR / ECLIPTIC
+        </span>
+        <span>
+          <i className="violet" />
+          GALACTIC PLANE
+        </span>
+        <span>
+          <i className="amber" />
+          HYPOTHETICAL ORBIT
+        </span>
+      </div>
+    </div>
   )
 }
