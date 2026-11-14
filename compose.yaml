@@ -1,0 +1,24 @@
+x-backend: &backend
+  build: .
+  environment:
+    SPHEREX_PROVIDER: ${SPHEREX_PROVIDER:-demo}
+    SPHEREX_COLLECTIONS: '${SPHEREX_COLLECTIONS:-["spherex_dr1","spherex_qr3"]}'
+    SPHEREX_CORS_ORIGINS: '${SPHEREX_CORS_ORIGINS:-["http://localhost:3000","http://localhost:5173"]}'
+    SPHEREX_DATA_DIR: /app/data
+  volumes:
+    - spherex-data:/app/data
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *backend
+    ports:
+      - "127.0.0.1:8000:8000"
+  worker:
+    <<: *backend
+    command: ["spherex-worker"]
+    healthcheck:
+      disable: true
+
+volumes:
+  spherex-data:
