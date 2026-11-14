@@ -14,6 +14,8 @@ export interface EnhancedTarget extends TestTarget {
   spherexRelevance: string
   imageUrlEpoch1: string
   imageUrlEpoch2: string
+  differenceUrl: string
+  blinkGifUrl: string
 }
 
 export const CURATED_TARGETS: EnhancedTarget[] = [
@@ -32,8 +34,10 @@ export const CURATED_TARGETS: EnhancedTarget[] = [
     distanceLy: '7.53 LY',
     temperatureK: '250 K',
     spherexRelevance: 'Completely dark in optical light; flares brightly in SPHEREx thermal infrared bands (3.5–5.0 µm).',
-    imageUrlEpoch1: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=80',
-    imageUrlEpoch2: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80',
+    imageUrlEpoch1: '/targets/wise-0855/epoch1.png',
+    imageUrlEpoch2: '/targets/wise-0855/epoch2.png',
+    differenceUrl: '/targets/wise-0855/difference.png',
+    blinkGifUrl: '/targets/wise-0855/blink.gif',
   },
   {
     id: 'barnards-star',
@@ -50,8 +54,10 @@ export const CURATED_TARGETS: EnhancedTarget[] = [
     distanceLy: '5.96 LY',
     temperatureK: '3,134 K',
     spherexRelevance: 'Shifts by over 5 arcsec between consecutive SPHEREx 6-month survey epochs.',
-    imageUrlEpoch1: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80',
-    imageUrlEpoch2: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=80',
+    imageUrlEpoch1: '/targets/barnards-star/epoch1.png',
+    imageUrlEpoch2: '/targets/barnards-star/epoch2.png',
+    differenceUrl: '/targets/barnards-star/difference.png',
+    blinkGifUrl: '/targets/barnards-star/blink.gif',
   },
   {
     id: 'epsilon-indi-b',
@@ -68,8 +74,10 @@ export const CURATED_TARGETS: EnhancedTarget[] = [
     distanceLy: '11.83 LY',
     temperatureK: '950 K',
     spherexRelevance: 'Strong absorption features at 1.6 µm and 3.3 µm mapped across SPHEREx spectral channels.',
-    imageUrlEpoch1: 'https://images.unsplash.com/photo-1543722530-d2c3201371e7?auto=format&fit=crop&w=800&q=80',
-    imageUrlEpoch2: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?auto=format&fit=crop&w=800&q=80',
+    imageUrlEpoch1: '/targets/epsilon-indi-b/epoch1.png',
+    imageUrlEpoch2: '/targets/epsilon-indi-b/epoch2.png',
+    differenceUrl: '/targets/epsilon-indi-b/difference.png',
+    blinkGifUrl: '/targets/epsilon-indi-b/blink.gif',
   },
   {
     id: 'rw-aurigae',
@@ -86,8 +94,10 @@ export const CURATED_TARGETS: EnhancedTarget[] = [
     distanceLy: '530 LY',
     temperatureK: '5,000 K',
     spherexRelevance: 'Infrared variability tracker: detects moving dust clumps and disk grains.',
-    imageUrlEpoch1: 'https://images.unsplash.com/photo-1447433589675-4aaa569f3e05?auto=format&fit=crop&w=800&q=80',
-    imageUrlEpoch2: 'https://images.unsplash.com/photo-1543722530-d2c3201371e7?auto=format&fit=crop&w=800&q=80',
+    imageUrlEpoch1: '/targets/rw-aurigae/epoch1.png',
+    imageUrlEpoch2: '/targets/rw-aurigae/epoch2.png',
+    differenceUrl: '/targets/rw-aurigae/difference.png',
+    blinkGifUrl: '/targets/rw-aurigae/blink.gif',
   },
   {
     id: 'r-draconis',
@@ -104,7 +114,9 @@ export const CURATED_TARGETS: EnhancedTarget[] = [
     distanceLy: '2,100 LY',
     temperatureK: '2,800 K',
     spherexRelevance: 'SPHEREx tracks cyclical brightness variations across its 102 infrared bands.',
-    imageUrlEpoch1: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
-    imageUrlEpoch2: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80',
+    imageUrlEpoch1: '/targets/r-draconis/epoch1.png',
+    imageUrlEpoch2: '/targets/r-draconis/epoch2.png',
+    differenceUrl: '/targets/r-draconis/difference.png',
+    blinkGifUrl: '/targets/r-draconis/blink.gif',
   },
 ]

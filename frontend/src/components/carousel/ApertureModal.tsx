@@ -2,13 +2,12 @@ import React, { useState } from 'react'
 import {
   ArrowRight,
   Compass,
-  Eye,
+  Film,
   Layers,
-  Maximize2,
+  MinusCircle,
   RefreshCw,
-  Sparkles,
+  Sliders,
   X,
-  Zap,
 } from 'lucide-react'
 import type { EnhancedTarget } from '../../api/client'
 
@@ -19,6 +18,8 @@ interface ApertureModalProps {
   onOpenSpectral: (target: EnhancedTarget) => void
 }
 
+type ModalViewMode = 'wipe' | 'diff' | 'blink'
+
 export const ApertureModal: React.FC<ApertureModalProps> = ({
   target,
   onClose,
@@ -27,6 +28,7 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
 }) => {
   if (!target) return null
 
+  const [viewMode, setViewMode] = useState<ModalViewMode>('wipe')
   const [wipePercent, setWipePercent] = useState(50)
   const [blinkEpoch, setBlinkEpoch] = useState<1 | 2>(1)
   const [isBlinking, setIsBlinking] = useState(false)
@@ -36,7 +38,7 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
     if (!isBlinking) return
     const interval = setInterval(() => {
       setBlinkEpoch((prev) => (prev === 1 ? 2 : 1))
-    }, 850)
+    }, 750)
     return () => clearInterval(interval)
   }, [isBlinking])
 
@@ -57,6 +59,9 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
                 <span className="rounded bg-amber-500/20 px-2 py-0.5 font-mono text-[10px] text-amber-300 border border-amber-500/40">
                   {target.category}
                 </span>
+                <span className="rounded bg-cyan-500/20 px-2 py-0.5 font-mono text-[10px] text-cyan-300 border border-cyan-500/40">
+                  REAL FITS CUTOUTS
+                </span>
               </div>
               <p className="font-mono text-xs text-neutral-400">
                 ICRS Coordinates: RA {target.ra.toFixed(4)}° / DEC {target.dec.toFixed(4)}°
@@ -65,17 +70,36 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
           </div>
 
           <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setIsBlinking(!isBlinking)}
-              className={`flex items-center space-x-1.5 rounded-lg border px-3 py-1.5 font-mono text-xs transition-colors ${
-                isBlinking
-                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
-                  : 'border-white/15 bg-white/5 text-neutral-300 hover:bg-white/10'
-              }`}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isBlinking ? 'animate-spin' : ''}`} />
-              <span>{isBlinking ? 'STOP BLINK' : 'AUTO BLINK'}</span>
-            </button>
+            {/* View Mode Switcher */}
+            <div className="flex items-center rounded-lg border border-white/15 bg-black/50 p-1 font-mono text-xs">
+              <button
+                onClick={() => setViewMode('wipe')}
+                className={`flex items-center space-x-1 rounded px-2.5 py-1 ${
+                  viewMode === 'wipe' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Sliders className="h-3 w-3" />
+                <span>SPLIT WIPE</span>
+              </button>
+              <button
+                onClick={() => setViewMode('diff')}
+                className={`flex items-center space-x-1 rounded px-2.5 py-1 ${
+                  viewMode === 'diff' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <MinusCircle className="h-3 w-3" />
+                <span>DIFFERENCE</span>
+              </button>
+              <button
+                onClick={() => setViewMode('blink')}
+                className={`flex items-center space-x-1 rounded px-2.5 py-1 ${
+                  viewMode === 'blink' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Film className="h-3 w-3" />
+                <span>ANIMATED GIF</span>
+              </button>
+            </div>
 
             <button
               onClick={onClose}
@@ -86,50 +110,79 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
           </div>
         </div>
 
-        {/* Content Body: Split Wipe Viewer (Left) + Astrometric Telemetry (Right) */}
+        {/* Content Body */}
         <div className="grid flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-12">
-          {/* Left Column: High-Res Split-Wipe Field (8 cols) */}
+          {/* Left Column: Visual Field (8 cols) */}
           <div className="relative flex flex-col justify-between bg-black p-6 lg:col-span-8 border-b lg:border-b-0 lg:border-r border-white/10">
             {/* Split-Wipe Interactive Viewer */}
             <div className="relative my-auto flex h-[480px] w-full items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-neutral-950 select-none">
-              {/* Background: Epoch 2 */}
-              <img
-                src={target.imageUrlEpoch2}
-                alt="Epoch 2"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
+              {viewMode === 'wipe' && (
+                <>
+                  {/* Background: Epoch 2 */}
+                  <img
+                    src={target.imageUrlEpoch2}
+                    alt="Epoch 2"
+                    className="absolute inset-0 h-full w-full object-contain"
+                  />
 
-              {/* Foreground: Epoch 1 (clipped via wipePercent) */}
-              <div
-                className="absolute inset-0 overflow-hidden"
-                style={{ width: `${wipePercent}%` }}
-              >
-                <img
-                  src={target.imageUrlEpoch1}
-                  alt="Epoch 1"
-                  className="absolute inset-0 h-full w-full max-w-none object-cover"
-                  style={{ width: '100%' }}
-                />
-              </div>
+                  {/* Foreground: Epoch 1 (clipped via wipePercent) */}
+                  <div
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ width: `${wipePercent}%` }}
+                  >
+                    <img
+                      src={target.imageUrlEpoch1}
+                      alt="Epoch 1"
+                      className="absolute inset-0 h-full w-full max-w-none object-contain"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
 
-              {/* Vertical Wipe Handle */}
-              <div
-                className="absolute top-0 bottom-0 z-20 w-0.5 bg-amber-400 cursor-ew-resize flex items-center justify-center shadow-[0_0_15px_#f59e0b]"
-                style={{ left: `${wipePercent}%` }}
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-400 bg-neutral-950 text-amber-300 font-mono text-[10px] shadow-lg">
-                  ↔
+                  {/* Vertical Wipe Handle */}
+                  <div
+                    className="absolute top-0 bottom-0 z-20 w-0.5 bg-amber-400 cursor-ew-resize flex items-center justify-center shadow-[0_0_15px_#f59e0b]"
+                    style={{ left: `${wipePercent}%` }}
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-400 bg-neutral-950 text-amber-300 font-mono text-[10px] shadow-lg">
+                      ↔
+                    </div>
+                  </div>
+
+                  <div className="absolute top-4 left-4 z-10 rounded bg-black/75 backdrop-blur-md px-2.5 py-1 font-mono text-xs text-white border border-white/10">
+                    <span className="text-cyan-400 font-bold">EPOCH 01:</span> 2026.1 (JANUARY)
+                  </div>
+
+                  <div className="absolute top-4 right-4 z-10 rounded bg-black/75 backdrop-blur-md px-2.5 py-1 font-mono text-xs text-white border border-white/10">
+                    <span className="text-amber-400 font-bold">EPOCH 02:</span> 2026.7 (JULY)
+                  </div>
+                </>
+              )}
+
+              {viewMode === 'diff' && (
+                <div className="relative flex h-full w-full items-center justify-center">
+                  <img
+                    src={target.differenceUrl}
+                    alt="Difference map"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                  <div className="absolute top-4 left-4 z-10 rounded bg-black/75 backdrop-blur-md px-2.5 py-1 font-mono text-xs text-white border border-white/10">
+                    <span className="text-amber-400 font-bold">DIFFERENCE MAP:</span> Science − Reference (Static Stars Subtracted)
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Screen Coordinate Overlays */}
-              <div className="absolute top-4 left-4 z-10 rounded bg-black/75 backdrop-blur-md px-2.5 py-1 font-mono text-xs text-white border border-white/10">
-                <span className="text-cyan-400 font-bold">EPOCH 01:</span> 2026.1 (JANUARY)
-              </div>
-
-              <div className="absolute top-4 right-4 z-10 rounded bg-black/75 backdrop-blur-md px-2.5 py-1 font-mono text-xs text-white border border-white/10">
-                <span className="text-amber-400 font-bold">EPOCH 02:</span> 2026.7 (JULY)
-              </div>
+              {viewMode === 'blink' && (
+                <div className="relative flex h-full w-full items-center justify-center">
+                  <img
+                    src={target.blinkGifUrl}
+                    alt="Animated Blink"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                  <div className="absolute top-4 left-4 z-10 rounded bg-black/75 backdrop-blur-md px-2.5 py-1 font-mono text-xs text-white border border-white/10">
+                    <span className="text-cyan-400 font-bold">ASTROMETRIC BLINK GIF:</span> 750ms Cadence
+                  </div>
+                </div>
+              )}
 
               {/* Center Crosshair Target Marker */}
               <div className="pointer-events-none absolute z-20 flex flex-col items-center justify-center">
@@ -139,19 +192,21 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
             </div>
 
             {/* Wipe Slider Controls */}
-            <div className="mt-4 flex items-center space-x-4 font-mono text-xs text-neutral-400">
-              <span>EPOCH 01</span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={wipePercent}
-                onChange={(e) => setWipePercent(parseInt(e.target.value))}
-                className="h-2 w-full cursor-pointer rounded-lg bg-neutral-800 accent-amber-400"
-              />
-              <span>EPOCH 02</span>
-              <span className="min-w-[45px] text-right font-bold text-amber-400">{wipePercent}%</span>
-            </div>
+            {viewMode === 'wipe' && (
+              <div className="mt-4 flex items-center space-x-4 font-mono text-xs text-neutral-400">
+                <span>EPOCH 01</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={wipePercent}
+                  onChange={(e) => setWipePercent(parseInt(e.target.value))}
+                  className="h-2 w-full cursor-pointer rounded-lg bg-neutral-800 accent-amber-400"
+                />
+                <span>EPOCH 02</span>
+                <span className="min-w-[45px] text-right font-bold text-amber-400">{wipePercent}%</span>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Telemetry & Actions (4 cols) */}

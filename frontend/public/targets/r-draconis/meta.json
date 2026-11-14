@@ -1,0 +1,16 @@
+{
+  "id": "r-draconis",
+  "name": "R Draconis",
+  "ra": 248.167610833,
+  "dec": 66.7549794172,
+  "provider": "DemoProvider",
+  "synthetic": true,
+  "obs1_id": "4978113fb2c244a4611927a6",
+  "obs2_id": "b0ce608cf97a5f8a91790c7e",
+  "mjd_epoch1": 61000.0,
+  "mjd_epoch2": 61090.0,
+  "wavelength_range_um": [
+    0.75,
+    1.09
+  ]
+}

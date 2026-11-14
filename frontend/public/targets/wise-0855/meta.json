@@ -1,0 +1,16 @@
+{
+  "id": "wise-0855",
+  "name": "WISE 0855",
+  "ra": 133.79512916666667,
+  "dec": -7.245147222222222,
+  "provider": "DemoProvider",
+  "synthetic": true,
+  "obs1_id": "0b5bbaa4979789ab22e65c5f",
+  "obs2_id": "a68fe845b0c7d1f5fecca0c3",
+  "mjd_epoch1": 61000.0,
+  "mjd_epoch2": 61090.0,
+  "wavelength_range_um": [
+    0.75,
+    1.09
+  ]
+}

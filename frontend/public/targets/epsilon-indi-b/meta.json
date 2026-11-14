@@ -1,0 +1,16 @@
+{
+  "id": "epsilon-indi-b",
+  "name": "Epsilon Indi B",
+  "ra": 331.0441465885,
+  "dec": -56.7828441951,
+  "provider": "DemoProvider",
+  "synthetic": true,
+  "obs1_id": "50861c0b882ca9214bd87b46",
+  "obs2_id": "9edccd8529a9626e7e19181e",
+  "mjd_epoch1": 61000.0,
+  "mjd_epoch2": 61090.0,
+  "wavelength_range_um": [
+    0.75,
+    1.09
+  ]
+}

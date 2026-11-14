@@ -1,0 +1,16 @@
+{
+  "id": "barnards-star",
+  "name": "Barnard's Star",
+  "ra": 269.4520769586,
+  "dec": 4.6933649666,
+  "provider": "DemoProvider",
+  "synthetic": true,
+  "obs1_id": "7ab5702e33bc9f8f4ef72192",
+  "obs2_id": "e36cc96d6b5552b1e4323211",
+  "mjd_epoch1": 61000.0,
+  "mjd_epoch2": 61090.0,
+  "wavelength_range_um": [
+    0.75,
+    1.09
+  ]
+}
