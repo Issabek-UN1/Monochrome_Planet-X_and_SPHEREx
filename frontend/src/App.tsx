@@ -10,7 +10,7 @@ import { TargetingCursor } from './components/cursor/TargetingCursor'
 import { CURATED_TARGETS, type EnhancedTarget } from './api/client'
 
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState<TabType>('overview')
+  const [currentTab, setCurrentTab] = useState<TabType>('explorer')
   const [selectedTarget, setSelectedTarget] = useState<EnhancedTarget | null>(CURATED_TARGETS[0])
   const [activeCarouselTarget, setActiveCarouselTarget] = useState<EnhancedTarget>(CURATED_TARGETS[0])
   const [inspectModalTarget, setInspectModalTarget] = useState<EnhancedTarget | null>(null)

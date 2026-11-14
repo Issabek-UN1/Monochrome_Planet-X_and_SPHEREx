@@ -52,7 +52,17 @@ def main():
             ) from exc
     if not (ROOT / ".env").exists():
         shutil.copyfile(ROOT / ".env.example", ROOT / ".env")
-        print("Created .env with explicitly synthetic SPHEREx demo data", flush=True)
+        print("Created .env from the real-archive configuration", flush=True)
+    from spherex.config import Settings
+
+    provider = Settings().provider
+    print(
+        "SPHEREx source: "
+        + (
+            "IRSA real archive" if provider == "irsa" else "SYNTHETIC DEMO (explicit configuration)"
+        ),
+        flush=True,
+    )
     node = shutil.which("node")
     npm = shutil.which("npm.cmd" if os.name == "nt" else "npm")
     if os.name == "nt":
