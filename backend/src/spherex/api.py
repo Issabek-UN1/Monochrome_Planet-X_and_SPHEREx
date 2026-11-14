@@ -26,6 +26,7 @@ from spherex.models import (
 from spherex.processing import validate_observations
 from spherex.providers import make_provider
 from spherex.storage import Store
+from spherex.targets import TARGETS, TestTarget
 
 logger = logging.getLogger(__name__)
 JobId = Annotated[str, Path(pattern=r"^[a-f0-9]{32}$")]
@@ -155,6 +156,10 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
                 "moving_source_candidates",
             ],
         }
+
+    @app.get("/api/v1/targets", response_model=list[TestTarget], tags=["configuration"])
+    def targets():
+        return TARGETS
 
     @app.get("/api/v1/observations", response_model=SearchResult, tags=["observations"])
     async def observations(request: Request, query: Annotated[SkySearch, Query()]):

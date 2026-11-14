@@ -7,6 +7,7 @@ export type JobRequest = components["schemas"]["JobRequest"];
 export type Job = components["schemas"]["Job"];
 export type Artifact = components["schemas"]["Artifact"];
 export type Capabilities = components["schemas"]["Capabilities"];
+export type TestTarget = components["schemas"]["TestTarget"];
 
 export class ApiError extends Error {
   constructor(
@@ -39,6 +40,9 @@ export function createSpherexClient(baseUrl: string) {
   }
 
   return {
+    targets(signal?: AbortSignal): Promise<TestTarget[]> {
+      return request("/api/v1/targets", { signal });
+    },
     capabilities(signal?: AbortSignal): Promise<Capabilities> {
       return request("/api/v1/capabilities", { signal });
     },

@@ -193,6 +193,71 @@
         }
       }
     },
+    "/api/v1/targets": {
+      "get": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Targets",
+        "operationId": "targets_api_v1_targets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TestTarget"
+                  },
+                  "type": "array",
+                  "title": "Response Targets Api V1 Targets Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Artifact no longer available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream archive unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/observations": {
       "get": {
         "tags": [
@@ -1246,6 +1311,58 @@
           "dec"
         ],
         "title": "SkySearch"
+      },
+      "TestTarget": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "ra": {
+            "type": "number",
+            "exclusiveMaximum": 360.0,
+            "minimum": 0.0,
+            "title": "Ra"
+          },
+          "dec": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Dec"
+          },
+          "radius_deg": {
+            "type": "number",
+            "title": "Radius Deg",
+            "default": 0.15
+          },
+          "fov_deg": {
+            "type": "number",
+            "title": "Fov Deg",
+            "default": 0.3
+          },
+          "coordinate_source": {
+            "type": "string",
+            "title": "Coordinate Source"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "default": "Reference field centre; no proper-motion/parallax propagation. The wide field accommodates motion since the reference epoch. Archive coverage does not establish detection of the named object."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "ra",
+          "dec",
+          "coordinate_source"
+        ],
+        "title": "TestTarget"
       }
     }
   }
