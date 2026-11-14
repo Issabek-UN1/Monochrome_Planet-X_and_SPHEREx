@@ -7,7 +7,7 @@ from spherex.config import Settings
 
 @pytest.fixture
 def settings(tmp_path):
-    return Settings(provider="demo", data_dir=tmp_path)
+    return Settings(provider="demo", data_dir=tmp_path, _env_file=None)
 
 
 @pytest.fixture

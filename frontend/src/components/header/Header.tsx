@@ -25,33 +25,14 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
     return () => clearInterval(timer)
   }, [])
 
-  // Capabilities fetch
   useEffect(() => {
-    spherexApi
-      .capabilities()
-      .then(setCapabilities)
-      .catch(() => {
-        // Fallback demo capability state if backend is still starting up
-        setCapabilities({
-          version: '0.1.0',
-          provider: 'demo',
-          synthetic: true,
-          collections: ['SPHEREx_DR1', 'SPHEREx_QR3'],
-          operations: ['cutout', 'stack', 'difference', 'blink'],
-          bands: [
-            { detector: 1, wavelength_min_um: 0.75, wavelength_max_um: 1.11 },
-            { detector: 2, wavelength_min_um: 1.11, wavelength_max_um: 1.64 },
-            { detector: 3, wavelength_min_um: 1.64, wavelength_max_um: 2.42 },
-            { detector: 4, wavelength_min_um: 2.42, wavelength_max_um: 3.82 },
-            { detector: 5, wavelength_min_um: 3.82, wavelength_max_um: 4.42 },
-            { detector: 6, wavelength_min_um: 4.42, wavelength_max_um: 5.0 },
-          ],
-          coordinate_frame: 'ICRS',
-          time_unit: 'MJD',
-          limits: { max_search_radius_deg: 0.5, max_fov_deg: 1.0, max_size_px: 512, max_job_observations: 12 },
-          planned: ['calibrated_photometry', 'spectral_cube_102', 'gaia_wise_crossmatch'],
-        })
-      })
+    const controller = new AbortController()
+    const refresh = () => spherexApi.capabilities(controller.signal).then(setCapabilities).catch(() => {
+      if (!controller.signal.aborted) setCapabilities(null)
+    })
+    void refresh()
+    const timer = setInterval(refresh, 10_000)
+    return () => { controller.abort(); clearInterval(timer) }
   }, [])
 
   const isDemo = capabilities?.synthetic || capabilities?.provider === 'demo'
@@ -88,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
               }`}
             />
             <span className={isDemo ? 'text-amber-300' : 'text-emerald-400'}>
-              {isDemo ? 'SYNTHETIC DEMO MODE' : 'IRSA ARCHIVE LIVE'}
+              {!capabilities ? 'API UNAVAILABLE' : isDemo ? 'SYNTHETIC DEMO MODE' : 'IRSA MODE (ARCHIVE STATUS MAY VARY)'}
             </span>
           </div>
         </div>

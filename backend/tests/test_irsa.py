@@ -71,3 +71,35 @@ async def test_sia_parameters_and_bounded_download(settings, monkeypatch):
             ],
             10,
         )
+
+
+async def test_irsa_retries_transient_failure_once(settings, monkeypatch):
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(503 if len(calls) == 1 else 200, content=CSV)
+
+    monkeypatch.setattr(
+        "spherex.providers.irsa.httpx.AsyncClient",
+        partial(httpx.AsyncClient, transport=httpx.MockTransport(handle)),
+    )
+    result = await IRSAProvider(settings).search(SkySearch(ra=10, dec=20))
+    assert len(calls) == 2
+    assert len(result.observations) == 1
+
+
+async def test_irsa_does_not_retry_invalid_request(settings, monkeypatch):
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(400)
+
+    monkeypatch.setattr(
+        "spherex.providers.irsa.httpx.AsyncClient",
+        partial(httpx.AsyncClient, transport=httpx.MockTransport(handle)),
+    )
+    with pytest.raises(ArchiveError):
+        await IRSAProvider(settings).search(SkySearch(ra=10, dec=20))
+    assert len(calls) == 1

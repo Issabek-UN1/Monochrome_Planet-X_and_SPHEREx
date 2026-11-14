@@ -13,7 +13,12 @@ class Settings(BaseSettings):
         default_factory=lambda: ["spherex_dr1", "spherex_qr3"], min_length=1
     )
     cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://localhost:5173"]
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+        ]
     )
     data_dir: Path = Path("data")
     search_ttl_seconds: int = Field(900, ge=0)

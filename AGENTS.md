@@ -1,5 +1,7 @@
 # Working in this repository
 
+- This checkout is for branch `Demotest1`. Commit and push only to `Demotest1`; do not modify or push `main`.
+
 - Read README.md and docs/architecture.md before changing module boundaries.
 - Backend source is backend/src/spherex; keep HTTP, archive adapters, science and storage separate.
 - Use Python 3.12+ and uv.lock. Do not commit .env, data, FITS downloads or local caches.

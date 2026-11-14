@@ -1,10 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
-  Compass,
-  Eye,
-  Filter,
-  Layers,
   Maximize2,
   RefreshCw,
   Sparkles,
@@ -18,21 +14,14 @@ interface AugeCarouselProps {
   onActiveTargetChange?: (target: EnhancedTarget) => void
 }
 
-const CATEGORIES = [
-  'ALL',
-  'PLANET X ANALOGUE',
-  'HIGH PROPER MOTION',
-  'SUB-STELLAR BROWN DWARF',
-  'VARIABLE STAR',
-]
-
 export const AugeCarousel: React.FC<AugeCarouselProps> = ({
   onSelectTarget,
   onInspectTarget,
   onActiveTargetChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [selectedCategory, setSelectedCategory] = useState('ALL')
+  const selectedCategory = 'ALL'
+  const [scrollPosition, setScrollPosition] = useState(0)
   const [isBlinking, setIsBlinking] = useState(true)
   const [blinkEpoch, setBlinkEpoch] = useState<1 | 2>(1)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -108,6 +97,9 @@ export const AugeCarousel: React.FC<AugeCarouselProps> = ({
       if (targetPos.current < 0) targetPos.current = 0
       if (targetPos.current > maxScroll) targetPos.current = maxScroll
 
+      const position = currentPos.current
+      setScrollPosition(previous => Math.abs(previous - position) > 0.05 ? position : previous)
+
       // Calculate active card index
       const closestIndex = Math.round(currentPos.current / 380)
       setActiveIndex(Math.max(0, Math.min(targets.length - 1, closestIndex)))
@@ -155,13 +147,15 @@ export const AugeCarousel: React.FC<AugeCarouselProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       className="relative z-10 flex min-h-[640px] w-full flex-col justify-between overflow-hidden py-4 select-none cursor-grab active:cursor-grabbing"
     >
+      <p className="mx-auto text-xs text-amber-300">SYNTHETIC PREVIEW IMAGES — use Sky Explorer to query telescope observations.</p>
       {/* Giant Auge XP Counter-Parallax Background Typography */}
       <div
         className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.035] select-none"
         style={{
-          transform: `translateX(${-currentPos.current * 0.22}px)`,
+          transform: `translateX(${-scrollPosition * 0.22}px)`,
         }}
       >
         <span className="font-mono text-[18vw] font-black uppercase tracking-tighter text-white whitespace-nowrap">
@@ -205,12 +199,12 @@ export const AugeCarousel: React.FC<AugeCarouselProps> = ({
         <div
           className="flex space-x-8 px-12 transition-transform duration-75 will-change-transform"
           style={{
-            transform: `translateX(calc(50vw - 190px - ${currentPos.current}px))`,
+            transform: `translateX(calc(50vw - 190px - ${scrollPosition}px))`,
           }}
         >
           {targets.map((target, idx) => {
             const isSelected = idx === activeIndex
-            const cardOffset = currentPos.current - idx * 380
+            const cardOffset = scrollPosition - idx * 380
             const innerParallax = -cardOffset * 0.2
 
             // Cylindrical Horizon Arc Curvature Math

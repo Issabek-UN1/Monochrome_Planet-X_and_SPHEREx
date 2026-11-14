@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
   CheckCircle2,
@@ -12,10 +12,9 @@ import {
   RefreshCw,
   Search,
   Satellite,
-  Terminal,
 } from 'lucide-react'
 import { CURATED_TARGETS, spherexApi, type EnhancedTarget } from '../../api/client'
-import type { Artifact, Job, Observation, SearchResult } from '@monochrome-spherex/api-client'
+import type { Job, SearchResult } from '@monochrome-spherex/api-client'
 
 interface SkyExplorerProps {
   initialTarget?: EnhancedTarget | null
@@ -30,197 +29,123 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({ initialTarget }) => {
   const [dec, setDec] = useState<number>(initialTarget?.dec ?? -7.2451)
   const [radiusDeg, setRadiusDeg] = useState<number>(0.1)
   const [fovDeg, setFovDeg] = useState<number>(0.2)
-  const [sizePx, setSizePx] = useState<number>(256)
+  const sizePx = 256
 
   // Search state
   const [isSearching, setIsSearching] = useState(false)
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [selectedObsIds, setSelectedObsIds] = useState<string[]>([])
-  const [isOfflineDemo, setIsOfflineDemo] = useState(false)
+  const searchAbort = useRef<AbortController | null>(null)
+  const submitAbort = useRef<AbortController | null>(null)
 
   // Job processing state
   const [activeJob, setActiveJob] = useState<Job | null>(null)
   const [isJobSubmitting, setIsJobSubmitting] = useState(false)
   const [jobError, setJobError] = useState<string | null>(null)
 
-  // Update coordinates if initial target changes
+  const handleSearch = useCallback(async (searchRa = ra, searchDec = dec) => {
+    searchAbort.current?.abort()
+    submitAbort.current?.abort()
+    const controller = new AbortController()
+    searchAbort.current = controller
+    setIsSearching(true)
+    setSearchError(null)
+    setSearchResult(null)
+    setSelectedObsIds([])
+    setActiveJob(null)
+    setIsJobSubmitting(false)
+    setJobError(null)
+    try {
+      const result = await spherexApi.search({ source, ra: searchRa, dec: searchDec,
+        radius_deg: radiusDeg, limit: 100 }, controller.signal)
+      if (controller.signal.aborted) return
+      setSearchResult(result)
+      const group = result.observations.filter(o => o.detector === result.observations[0]?.detector)
+      setSelectedObsIds(group.slice(0, 2).map(o => o.id))
+    } catch (err) {
+      if (!controller.signal.aborted) setSearchError(err instanceof Error ? err.message : 'Search failed')
+    } finally {
+      if (!controller.signal.aborted) setIsSearching(false)
+    }
+  }, [source, ra, dec, radiusDeg])
+
+  // Cancel requests on navigation; changing sources cannot reuse old observation IDs.
+  useEffect(() => () => { searchAbort.current?.abort(); submitAbort.current?.abort() }, [])
+  useEffect(() => {
+    searchAbort.current?.abort()
+    submitAbort.current?.abort()
+    setSearchResult(null)
+    setSelectedObsIds([])
+    setActiveJob(null)
+    setIsSearching(false)
+    setIsJobSubmitting(false)
+  }, [source])
   useEffect(() => {
     if (initialTarget) {
       setRa(initialTarget.ra)
       setDec(initialTarget.dec)
-      handleSearch(initialTarget.ra, initialTarget.dec)
+      setRadiusDeg(initialTarget.radius_deg)
+      setFovDeg(initialTarget.fov_deg)
     }
   }, [initialTarget])
 
-  const handleSearch = async (searchRa = ra, searchDec = dec) => {
-    setIsSearching(true)
-    setSearchError(null)
-    setSelectedObsIds([])
-    setIsOfflineDemo(false)
-
-    try {
-      const result = await spherexApi.search({
-        source,
-        ra: searchRa,
-        dec: searchDec,
-        radius_deg: radiusDeg,
-        limit: 100,
-      })
-      setSearchResult(result)
-
-      // Auto-select first two matching detector observations for quick blink
-      if (result.observations.length >= 2) {
-        const det1 = result.observations.filter((o) => o.detector === result.observations[0].detector)
-        if (det1.length >= 2) {
-          setSelectedObsIds(det1.slice(0, 2).map((o) => o.id))
-        } else {
-          setSelectedObsIds(result.observations.slice(0, 2).map((o) => o.id))
-        }
-      } else if (result.observations.length === 1) {
-        setSelectedObsIds([result.observations[0].id])
-      }
-    } catch (err: any) {
-      // Backend offline fallback: provide simulated observations so the user can test the UI
-      setIsOfflineDemo(true)
-      const simulatedObs: Observation[] = [
-        {
-          id: `SPHEREx_SIM_${searchRa.toFixed(1)}_${searchDec.toFixed(1)}_EPOCH_1`,
-          provider: 'demo',
-          collection: 'SPHEREx_DR1',
-          obs_id: 'SPX_2026_0114_001',
-          ra: searchRa,
-          dec: searchDec,
-          mjd_start: 61000.25,
-          mjd_end: 61000.26,
-          wavelength_min_um: 2.42,
-          wavelength_max_um: 3.82,
-          detector: 4,
-          synthetic: true,
-        },
-        {
-          id: `SPHEREx_SIM_${searchRa.toFixed(1)}_${searchDec.toFixed(1)}_EPOCH_2`,
-          provider: 'demo',
-          collection: 'SPHEREx_DR1',
-          obs_id: 'SPX_2026_0718_042',
-          ra: searchRa,
-          dec: searchDec,
-          mjd_start: 61184.60,
-          mjd_end: 61184.61,
-          wavelength_min_um: 2.42,
-          wavelength_max_um: 3.82,
-          detector: 4,
-          synthetic: true,
-        },
-        {
-          id: `SPHEREx_SIM_${searchRa.toFixed(1)}_${searchDec.toFixed(1)}_EPOCH_3`,
-          provider: 'demo',
-          collection: 'SPHEREx_QR3',
-          obs_id: 'SPX_2026_1229_099',
-          ra: searchRa,
-          dec: searchDec,
-          mjd_start: 61350.12,
-          mjd_end: 61350.13,
-          wavelength_min_um: 3.82,
-          wavelength_max_um: 4.42,
-          detector: 5,
-          synthetic: true,
-        },
-      ]
-
-      setSearchResult({
-        query: { source, ra: searchRa, dec: searchDec, radius_deg: radiusDeg, limit: 100 },
-        observations: simulatedObs,
-        possibly_truncated: false,
-        cached: true,
-      })
-      setSelectedObsIds([simulatedObs[0].id, simulatedObs[1].id])
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  // Create & poll job
   const handleCreateJob = async (kind: 'blink' | 'difference' | 'stack' | 'cutout') => {
-    if (selectedObsIds.length === 0) return
+    if (!searchResult || !selectedObsIds.length) return
+    submitAbort.current?.abort()
+    const controller = new AbortController()
+    submitAbort.current = controller
     setIsJobSubmitting(true)
     setJobError(null)
-
+    setActiveJob(null)
     try {
       const isNeossat = source === 'neossat'
-      const job = await spherexApi.createJob({
-        source,
-        kind,
-        observation_ids: selectedObsIds,
-        ra,
-        dec,
-        fov_deg: fovDeg,
-        size_px: sizePx,
-        reject_flags: isNeossat ? 0 : 4292870143,
-        subtract_zodi: isNeossat ? false : true,
-      })
-      setActiveJob(job)
-      pollJob(job.id)
-    } catch (err: any) {
-      // If backend is offline, simulate job execution so user can see resulting UI
-      setTimeout(() => {
-        const dummyArtifacts: Artifact[] = [
-          {
-            name: `${kind}_result_${ra.toFixed(2)}_${dec.toFixed(2)}.png`,
-            media_type: 'image/png',
-            url: initialTarget?.imageUrlEpoch1 || 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=80',
-          },
-          {
-            name: `${kind}_data.fits`,
-            media_type: 'application/fits',
-            url: '#',
-          },
-        ]
-        setActiveJob({
-          id: `sim-job-${Date.now().toString().slice(-6)}`,
-          status: 'succeeded',
-          request: {
-            source,
-            kind,
-            observation_ids: selectedObsIds,
-            ra,
-            dec,
-            fov_deg: fovDeg,
-            size_px: sizePx,
-            reject_flags: 4292870143,
-            subtract_zodi: true,
-          },
-          created_at: Date.now() / 1000,
-          updated_at: Date.now() / 1000,
-          attempts: 1,
-          artifacts: dummyArtifacts,
-        })
+      const job = await spherexApi.createJob({ source, kind, observation_ids: selectedObsIds,
+        ra: searchResult.query.ra, dec: searchResult.query.dec, fov_deg: fovDeg, size_px: sizePx,
+        reject_flags: isNeossat ? 0 : 4292870143, subtract_zodi: !isNeossat }, controller.signal)
+      if (!controller.signal.aborted) setActiveJob(job)
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setJobError(err instanceof Error ? err.message : 'Could not submit job')
         setIsJobSubmitting(false)
-      }, 1200)
+      }
     }
   }
 
-  const pollJob = (jobId: string) => {
-    const interval = setInterval(async () => {
+  const jobId = activeJob?.id
+  useEffect(() => {
+    if (!jobId) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout>
+    const started = Date.now()
+    const poll = async () => {
       try {
-        const job = await spherexApi.getJob(jobId)
+        const job = await spherexApi.getJob(jobId, controller.signal)
+        if (controller.signal.aborted) return
         setActiveJob(job)
         if (job.status === 'succeeded' || job.status === 'failed') {
-          clearInterval(interval)
+          setIsJobSubmitting(false)
+          if (job.status === 'failed') setJobError(job.error || 'Processing failed')
+          return
+        }
+        if (Date.now() - started > 15 * 60_000) throw new Error('Processing is taking too long. Check that the worker is running; the job remains saved.')
+        timer = setTimeout(poll, 1800)
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setJobError(err instanceof Error ? err.message : 'Unable to read job status')
           setIsJobSubmitting(false)
         }
-      } catch (err) {
-        clearInterval(interval)
-        setIsJobSubmitting(false)
       }
-    }, 1800)
-  }
+    }
+    void poll()
+    return () => { controller.abort(); clearTimeout(timer) }
+  }, [jobId])
 
   const toggleSelectObs = (id: string) => {
     if (selectedObsIds.includes(id)) {
       setSelectedObsIds(selectedObsIds.filter((item) => item !== id))
     } else {
-      setSelectedObsIds([...selectedObsIds, id])
+      setSelectedObsIds([...selectedObsIds, id].slice(0, 12))
     }
   }
 
@@ -288,21 +213,10 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({ initialTarget }) => {
         ))}
       </div>
 
-      {/* Offline Demo Banner (Shown when backend is not yet started on localhost:8000) */}
-      {isOfflineDemo && (
-        <div className="mb-6 flex items-start space-x-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 font-mono text-xs text-amber-200">
-          <Terminal className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <span className="font-bold">STANDALONE CLIENT PREVIEW MODE:</span> Backend at{' '}
-            <code className="bg-black/50 px-1 py-0.5 rounded text-amber-300">http://localhost:8000</code> is
-            currently offline. Displaying realistic simulated survey epochs.
-            <div className="mt-1 text-[11px] text-amber-300/80">
-              To activate real backend processing: run <code className="bg-black/50 px-1.5 py-0.5 rounded font-bold">bash start.sh</code> or{' '}
-              <code className="bg-black/50 px-1.5 py-0.5 rounded font-bold">uv run uvicorn spherex.api:app --reload</code> in the repository root.
-            </div>
-          </div>
-        </div>
-      )}
+      {searchResult?.observations.some(o => o.synthetic) && <p role="status" className="mb-4 text-amber-300">SYNTHETIC DEMO DATA — generated by the backend, not telescope observations.</p>}
+      {searchResult?.warnings?.map(w => <p key={w} className="mb-2 text-sm text-amber-200">{w}</p>)}
+      {activeJob?.warnings?.map(w => <p key={w} className="mb-2 text-sm text-amber-200">{w}</p>)}
+      {jobError && <p role="alert" className="mb-4 text-red-300">{jobError}</p>}
 
       {/* Grid: Left Search Panel / Right Execution & Results */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -460,17 +374,17 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({ initialTarget }) => {
 
               <button
                 onClick={() => handleCreateJob('difference')}
-                disabled={selectedObsIds.length !== 2 || isJobSubmitting}
+                disabled={source === 'neossat' || selectedObsIds.length !== 2 || isJobSubmitting}
                 className="flex flex-col items-center justify-center rounded-xl border border-amber-500/30 bg-amber-950/20 py-3 font-mono text-xs font-semibold text-amber-300 hover:bg-amber-900/30 disabled:opacity-40 transition-colors"
               >
                 <MinusCircle className="h-4 w-4 mb-1" />
                 <span>DIFFERENCE</span>
-                <span className="text-[9px] text-amber-400/70 font-normal">Ref − Science</span>
+                <span className="text-[9px] text-amber-400/70 font-normal">Science − Ref</span>
               </button>
 
               <button
                 onClick={() => handleCreateJob('stack')}
-                disabled={selectedObsIds.length < 2 || isJobSubmitting}
+                disabled={source === 'neossat' || selectedObsIds.length < 2 || isJobSubmitting}
                 className="flex flex-col items-center justify-center rounded-xl border border-purple-500/30 bg-purple-950/20 py-3 font-mono text-xs font-semibold text-purple-300 hover:bg-purple-900/30 disabled:opacity-40 transition-colors"
               >
                 <Layers className="h-4 w-4 mb-1" />

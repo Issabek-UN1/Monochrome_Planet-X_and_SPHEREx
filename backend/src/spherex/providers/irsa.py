@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import hashlib
 import io
@@ -90,26 +91,35 @@ class IRSAProvider:
         self.settings = settings
 
     async def _get(self, url: str, params, limit: int) -> bytes:
-        try:
-            async with httpx.AsyncClient(
-                timeout=self.settings.http_timeout_seconds,
-                follow_redirects=False,
-                headers={"User-Agent": "Monochrome-SPHEREx/0.1 (Space Apps prototype)"},
-            ) as client:
-                async with client.stream("GET", url, params=params) as response:
-                    response.raise_for_status()
-                    if response.is_redirect:
-                        raise ArchiveError("Archive redirects are not followed")
-                    content = bytearray()
-                    async for chunk in response.aiter_bytes():
-                        content.extend(chunk)
-                        if len(content) > limit:
-                            raise ArchiveError("Archive response exceeds configured size limit")
-                    return bytes(content)
-        except httpx.HTTPError as exc:
-            raise ArchiveError(
-                "IRSA is unavailable or rejected the request; try again later"
-            ) from exc
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(
+                    timeout=self.settings.http_timeout_seconds,
+                    follow_redirects=False,
+                    headers={"User-Agent": "Monochrome-SPHEREx/0.1 (Space Apps prototype)"},
+                ) as client:
+                    async with client.stream("GET", url, params=params) as response:
+                        response.raise_for_status()
+                        if response.is_redirect:
+                            raise ArchiveError("Archive redirects are not followed")
+                        content = bytearray()
+                        async for chunk in response.aiter_bytes():
+                            content.extend(chunk)
+                            if len(content) > limit:
+                                raise ArchiveError("Archive response exceeds configured size limit")
+                        return bytes(content)
+            except httpx.HTTPError as exc:
+                transient = isinstance(exc, (httpx.TransportError,)) or (
+                    isinstance(exc, httpx.HTTPStatusError)
+                    and exc.response.status_code in (429, 502, 503, 504)
+                )
+                if attempt == 0 and transient:
+                    await asyncio.sleep(0.5)
+                    continue
+                raise ArchiveError(
+                    "IRSA is unavailable or rejected the request; try again later"
+                ) from exc
+        raise ArchiveError("IRSA request failed")
 
     async def search(self, query: SkySearch) -> SearchResult:
         params = [("COLLECTION", c) for c in self.settings.collections]

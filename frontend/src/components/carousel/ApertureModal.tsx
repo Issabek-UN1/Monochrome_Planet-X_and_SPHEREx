@@ -5,7 +5,6 @@ import {
   Film,
   Layers,
   MinusCircle,
-  RefreshCw,
   Sliders,
   X,
 } from 'lucide-react'
@@ -26,21 +25,10 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
   onOpenExplorer,
   onOpenSpectral,
 }) => {
-  if (!target) return null
 
   const [viewMode, setViewMode] = useState<ModalViewMode>('wipe')
   const [wipePercent, setWipePercent] = useState(50)
-  const [blinkEpoch, setBlinkEpoch] = useState<1 | 2>(1)
-  const [isBlinking, setIsBlinking] = useState(false)
-
-  // Blink interval if toggled
-  React.useEffect(() => {
-    if (!isBlinking) return
-    const interval = setInterval(() => {
-      setBlinkEpoch((prev) => (prev === 1 ? 2 : 1))
-    }, 750)
-    return () => clearInterval(interval)
-  }, [isBlinking])
+  if (!target) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-2xl p-4 sm:p-6 animate-in fade-in duration-200">
@@ -60,7 +48,7 @@ export const ApertureModal: React.FC<ApertureModalProps> = ({
                   {target.category}
                 </span>
                 <span className="rounded bg-cyan-500/20 px-2 py-0.5 font-mono text-[10px] text-cyan-300 border border-cyan-500/40">
-                  REAL FITS CUTOUTS
+                  SYNTHETIC PREVIEW — NOT A LIVE QUERY
                 </span>
               </div>
               <p className="font-mono text-xs text-neutral-400">

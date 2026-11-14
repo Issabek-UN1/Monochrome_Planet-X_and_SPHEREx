@@ -1,14 +1,10 @@
 import React, { useState } from 'react'
 import {
-  AlertTriangle,
   Award,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Flame,
   Layers,
-  Play,
-  RotateCcw,
   Sparkles,
   Zap,
 } from 'lucide-react'
@@ -33,7 +29,6 @@ export const SpectralLab: React.FC<SpectralLabProps> = ({ initialTarget }) => {
     initialTarget || CURATED_TARGETS[0]
   )
   const [currentBand, setCurrentBand] = useState<number>(58) // Mid-IR band ~3.0 µm
-  const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [verified, setVerified] = useState<boolean>(false)
 
   // Calculate wavelength from band index 1..102
@@ -62,6 +57,7 @@ export const SpectralLab: React.FC<SpectralLabProps> = ({ initialTarget }) => {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
+<p role="status" className="mb-4 rounded border border-amber-500/40 p-4 text-amber-200">ILLUSTRATIVE PROTOTYPE: no measured 102-channel spectrum or automated source verification is available. Slider wavelengths are approximate.</p>
       {/* Header Banner */}
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center border-b border-white/10 pb-6">
         <div>
@@ -73,7 +69,7 @@ export const SpectralLab: React.FC<SpectralLabProps> = ({ initialTarget }) => {
             SPHEREx 102-Band Spectral Laboratory
           </h2>
           <p className="mt-1 text-sm text-neutral-400">
-            Analyze the infrared spectral energy distribution (SED). Cold bodies like Planet X peak in the 3.5–5.0 µm thermal bands.
+            Analyze the infrared spectral energy distribution (SED). Calibrated spectral extraction is planned; these controls are illustrative.
           </p>
         </div>
 
@@ -321,7 +317,7 @@ export const SpectralLab: React.FC<SpectralLabProps> = ({ initialTarget }) => {
             <div className="mt-4 space-y-2.5 font-mono text-xs text-neutral-300">
               <label className="flex items-center space-x-2">
                 <input type="checkbox" defaultChecked className="rounded accent-amber-400" />
-                <span>Motion verified across epochs</span>
+                <span>Motion has not been verified by the application</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -337,7 +333,7 @@ export const SpectralLab: React.FC<SpectralLabProps> = ({ initialTarget }) => {
 
             <button
               onClick={() => setVerified(true)}
-              disabled={verified}
+              disabled={true}
               className={`mt-5 flex w-full items-center justify-center space-x-2 rounded-xl py-2.5 font-mono text-xs font-semibold transition-colors ${
                 verified
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'

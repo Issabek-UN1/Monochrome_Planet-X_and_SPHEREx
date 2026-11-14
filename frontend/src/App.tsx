@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ArrowRight, Compass, ExternalLink, Globe, Layers, Search, Sparkles } from 'lucide-react'
+import { ArrowRight, ExternalLink, Globe, Sparkles } from 'lucide-react'
 import { CelestialSphereCanvas } from './components/3d/CelestialSphereCanvas'
 import { AugeCarousel } from './components/carousel/AugeCarousel'
 import { ApertureModal } from './components/carousel/ApertureModal'
