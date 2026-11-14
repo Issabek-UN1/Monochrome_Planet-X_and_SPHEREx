@@ -19,12 +19,18 @@
 | [WiseView](http://byw.tools/wiseview) | Референс интерфейса WISE из условия | Сервис автоматически не открылся; код/данные не копировались; не является источником SPHEREx |
 | [Gaia в MAST](https://archive.stsci.edu/missions-and-data/gaia) | Будущий слой каталожных источников | Страница проверена; адаптер Gaia DR3 ещё не реализован |
 | [CSA NEOSSat](https://www.asc-csa.gc.ca/eng/satellites/neossat/) | Дополнительный контекст миссии | Страница проверена; не используется для снимков SPHEREx |
-| [CADC](https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/en/) | Дополнительный архив, в том числе NEOSSat | Страница проверена; адаптер пока не нужен для основного сценария |
-| [NEOSSAT Tutorial](https://github.com/asc-csa/NEOSSAT_Tutorial) | Дополнительный учебный материал | Репозиторий доступен; код не импортирован |
-| [NEOSSat Dataset](https://data.asc-csa.gc.ca/dataset/neossat) | Дополнительные наблюдения другой миссии | При проверке HTTP 502; данные не загружались |
+| [CADC](https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/en/) | Архив NEOSSat | Подключён: ObsTAP, DataLink, COR/CORD FITS, cutout/blink |
+| [NEOSSAT Tutorial](https://github.com/asc-csa/NEOSSAT_Tutorial) | Дополнительный учебный материал | Изучены предоставленные notebooks и лицензия; код не копировался |
+| [NEOSSat Dataset](https://data.asc-csa.gc.ca/dataset/neossat) | Дополнительные наблюдения другой миссии | Доступ к изображениям реализован через CADC; каталоги CSA ASTRO/XML сохранены как альтернативные ссылки |
 
 Resources — перечень полезных материалов, а не требование загрузить все перечисленные
 архивы в один продукт. Основной сценарий по Objectives должен использовать SPHEREx.
+
+14 ноября 2026 года проверена полная цепочка NEOSSat: поиск публичных наблюдений,
+DataLink, загрузка двух разных COR-файлов, celestial WCS и blink. Результат сохранён
+локально в `data/neossat-validation/488b4ee75d884738a451c13a82f788b2`.
+Исходные единицы отсчётов сохранены; неподтверждённые дисперсии не создавались.
+Подробнее: [подключение NEOSSat](neossat.md).
 
 ## Источники, атрибуция и условия использования
 

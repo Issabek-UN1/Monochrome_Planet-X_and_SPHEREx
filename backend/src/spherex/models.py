@@ -13,6 +13,7 @@ class StrictModel(BaseModel):
 
 
 class SkySearch(StrictModel):
+    source: Literal["spherex", "neossat"] = "spherex"
     ra: RA
     dec: Dec
     radius_deg: Annotated[Finite, Field(gt=0, le=2)] = 0.05
@@ -34,8 +35,10 @@ class SkySearch(StrictModel):
 
 
 class Observation(BaseModel):
+    exposure_seconds: Finite | None = None
+    product_type: str | None = None
     id: str
-    provider: Literal["irsa", "demo"]
+    provider: Literal["irsa", "demo", "neossat"]
     collection: str
     obs_id: str
     access_url: str | None = None
@@ -65,6 +68,7 @@ class JobKind(StrEnum):
 
 
 class JobRequest(StrictModel):
+    source: Literal["spherex", "neossat"] = "spherex"
     kind: JobKind
     observation_ids: list[Annotated[str, Field(pattern=r"^[a-f0-9]{24}$")]] = Field(
         min_length=1, max_length=12
@@ -127,6 +131,7 @@ class DetectorBand(BaseModel):
 
 
 class Capabilities(BaseModel):
+    supplemental_sources: dict[str, list[str]] = Field(default_factory=dict)
     version: str
     provider: Literal["demo", "irsa"]
     synthetic: bool

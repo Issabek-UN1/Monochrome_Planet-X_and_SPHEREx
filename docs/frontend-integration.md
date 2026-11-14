@@ -5,6 +5,11 @@
 
 ## Локальная настройка
 
+NEOSSat доступен с `source=neossat` в поиске и теле задачи, независимо от demo/irsa
+основного источника. Поддерживаются cutout/blink; в задаче укажите
+`subtract_zodi=false`, `reject_flags=0`. Единицы — отсчёты детектора.
+Подробности и примеры: [neossat.md](neossat.md).
+
 - API: `http://localhost:8000`, префикс `/api/v1`.
 - Разрешённые адреса фронтенда: `http://localhost:3000` и `http://localhost:5173`.
 - Другой адрес добавляется в `SPHEREX_CORS_ORIGINS` (JSON-массив в `.env`).
