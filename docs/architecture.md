@@ -3,6 +3,12 @@
 Выбран модульный бэкенд FastAPI и один отдельный процесс обработки. Для первого этапа
 не нужны PostgreSQL, Redis, S3 или учётные записи внешних сервисов.
 
+Дополнительный адаптер NEOSSat (`providers/neossat.py`) работает через CADC ObsTAP
+и DataLink параллельно с основным провайдером. Источник задаётся полем `source`
+в запросе поиска и задачи; по умолчанию сохраняется SPHEREx. Отдельный модуль
+`neossat_science.py` создаёт вырезки/blink в counts без слоёв SPHEREx и выдуманных
+дисперсий. Подробности и ограничения: [NEOSSat](neossat.md).
+
 ```mermaid
 flowchart LR
   UI[Frontend] --> API[FastAPI /api/v1]

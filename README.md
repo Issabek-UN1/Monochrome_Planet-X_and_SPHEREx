@@ -61,6 +61,11 @@ Swagger: [localhost:8000/docs](http://localhost:8000/docs).
 
 ## Подключение интерфейса
 
+**NEOSSat подключён как дополнительный реальный источник**: поиск через
+`/api/v1/observations?source=neossat&ra=...&dec=...`, вырезки и blink через общую
+очередь задач. [Примеры, единицы и ограничения](docs/neossat.md).
+Проверка: `uv run python scripts/verify_neossat.py`.
+
 1. `GET /api/v1/capabilities` — режим данных, операции, детекторы и лимиты.
 2. `GET /api/v1/observations?ra=269.4521&dec=4.6934&radius_deg=0.05` — наблюдения.
 3. `POST /api/v1/jobs` — выбранная операция и ID наблюдений из поиска.

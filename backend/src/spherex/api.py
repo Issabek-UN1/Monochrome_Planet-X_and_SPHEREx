@@ -25,6 +25,7 @@ from spherex.models import (
 )
 from spherex.processing import validate_observations
 from spherex.providers import make_provider
+from spherex.providers.neossat import NEOSSatProvider
 from spherex.storage import Store
 from spherex.targets import TARGETS, TestTarget
 
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
     async def lifespan(app: FastAPI):
         app.state.store = Store(settings.data_dir)
         app.state.provider = provider or make_provider(settings)
+        app.state.neossat = NEOSSatProvider(settings)
         yield
 
     app = FastAPI(
@@ -133,6 +135,7 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
     @app.get("/api/v1/capabilities", response_model=Capabilities, tags=["configuration"])
     def capabilities() -> dict:
         return {
+            "supplemental_sources": {"neossat": ["cutout", "blink"]},
             "version": __version__,
             "provider": settings.provider,
             "synthetic": settings.provider == "demo",
@@ -178,7 +181,13 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
         cached = store.cached_search(key)
         if cached is not None:
             return cached
-        result = await request.app.state.provider.search(query)
+        selected = (
+            request.app.state.neossat if query.source == "neossat" else request.app.state.provider
+        )
+        try:
+            result = await selected.search(query)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
         store.save_search(key, result, settings.search_ttl_seconds)
         return result
 

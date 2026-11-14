@@ -172,6 +172,10 @@ export interface components {
         };
         /** Capabilities */
         Capabilities: {
+            /** Supplemental Sources */
+            supplemental_sources?: {
+                [key: string]: string[];
+            };
             /** Version */
             version: string;
             /**
@@ -254,6 +258,12 @@ export interface components {
         JobKind: "cutout" | "stack" | "difference" | "blink";
         /** JobRequest */
         JobRequest: {
+            /**
+             * Source
+             * @default spherex
+             * @enum {string}
+             */
+            source: "spherex" | "neossat";
             kind: components["schemas"]["JobKind"];
             /** Observation Ids */
             observation_ids: string[];
@@ -284,13 +294,17 @@ export interface components {
         };
         /** Observation */
         Observation: {
+            /** Exposure Seconds */
+            exposure_seconds?: number | null;
+            /** Product Type */
+            product_type?: string | null;
             /** Id */
             id: string;
             /**
              * Provider
              * @enum {string}
              */
-            provider: "irsa" | "demo";
+            provider: "irsa" | "demo" | "neossat";
             /** Collection */
             collection: string;
             /** Obs Id */
@@ -334,6 +348,12 @@ export interface components {
         };
         /** SkySearch */
         SkySearch: {
+            /**
+             * Source
+             * @default spherex
+             * @enum {string}
+             */
+            source: "spherex" | "neossat";
             /** Ra */
             ra: number;
             /** Dec */
@@ -625,6 +645,7 @@ export interface operations {
     observations_api_v1_observations_get: {
         parameters: {
             query: {
+                source?: "spherex" | "neossat";
                 ra: number;
                 dec: number;
                 radius_deg?: number;

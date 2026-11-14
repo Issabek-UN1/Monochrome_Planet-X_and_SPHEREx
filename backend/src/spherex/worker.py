@@ -7,6 +7,7 @@ from spherex.config import Settings
 from spherex.errors import ArchiveError
 from spherex.processing import process_job
 from spherex.providers import make_provider
+from spherex.providers.neossat import NEOSSatProvider
 from spherex.storage import Store
 
 logger = logging.getLogger(__name__)
@@ -25,9 +26,12 @@ async def run_once(store: Store, settings: Settings, provider=None) -> bool:
 
     heartbeat = asyncio.create_task(renew())
     try:
-        artifacts, warnings = await process_job(
-            job, store, provider or make_provider(settings), settings.provider
+        selected = (
+            NEOSSatProvider(settings)
+            if job.request.source == "neossat"
+            else provider or make_provider(settings)
         )
+        artifacts, warnings = await process_job(job, store, selected, settings.provider)
         store.finish(job.id, owner, artifacts, warnings)
         logger.info("Job %s succeeded", job.id)
     except Exception as exc:

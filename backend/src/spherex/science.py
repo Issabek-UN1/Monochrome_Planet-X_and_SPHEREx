@@ -19,6 +19,8 @@ class Frame:
     flags: np.ndarray
     coverage: np.ndarray
     wcs: WCS
+    unit: str = "MJy/sr"
+    has_quality: bool = True
 
 
 def target_wcs(request: JobRequest) -> WCS:
@@ -120,7 +122,7 @@ def combine(frames: list[Frame], difference: bool = False) -> Frame:
 
 def fits_bytes(frame: Frame, synthetic: bool, coverage_count: bool = False) -> bytes:
     header = frame.wcs.to_header()
-    header["BUNIT"] = "MJy/sr"
+    header["BUNIT"] = frame.unit
     header["SYNTHET"] = synthetic
     header["HISTORY"] = "Exploratory product; see accompanying provenance.json"
     var_header = frame.wcs.to_header()
@@ -136,6 +138,9 @@ def fits_bytes(frame: Frame, synthetic: bool, coverage_count: bool = False) -> b
             fits.ImageHDU(frame.coverage.astype("f4"), coverage_header, name="COVERAGE"),
         ]
     )
+    if not frame.has_quality:
+        del hdus["VARIANCE"]
+        del hdus["FLAGS"]
     buffer = io.BytesIO()
     hdus.writeto(buffer, checksum=True)
     return buffer.getvalue()

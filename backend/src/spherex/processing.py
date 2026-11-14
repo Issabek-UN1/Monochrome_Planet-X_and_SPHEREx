@@ -4,6 +4,7 @@ from pathlib import Path
 
 from spherex import __version__
 from spherex.models import Artifact, Job, JobKind, JobRequest, Observation
+from spherex.neossat_science import align_neossat
 from spherex.providers.base import Provider
 from spherex.science import Frame, align_fits, combine, fits_bytes, preview_images
 from spherex.storage import Store
@@ -18,6 +19,12 @@ SCIENCE_WARNINGS = [
 
 
 def validate_observations(request: JobRequest, store: Store, provider: str) -> list[Observation]:
+    if request.source == "neossat":
+        provider = "neossat"
+        if request.kind not in (JobKind.cutout, JobKind.blink):
+            raise ValueError("NEOSSat currently supports only cutout and blink")
+        if request.subtract_zodi or request.reject_flags != 0:
+            raise ValueError("For NEOSSat set subtract_zodi=false and reject_flags=0")
     observations = []
     for identifier in request.observation_ids:
         observation = store.observation(identifier)
@@ -38,6 +45,13 @@ def render(
 ) -> tuple[list[Artifact], list[str]]:
     output.mkdir(parents=True, exist_ok=True)
     warnings = list(SCIENCE_WARNINGS)
+    if job.request.source == "neossat":
+        warnings = [
+            "NEOSSat COR/CORD preview in detector counts, without flux calibration. "
+            "Nearest-neighbour WCS alignment uses archived astrometry. "
+            "No SPHEREx FLAGS, variance, ZODI or motion detection is provided. "
+            "Exposure, tracking and background changes can mimic variability."
+        ]
     synthetic = any(o.synthetic for o in observations)
     if synthetic:
         warnings.insert(0, "SYNTHETIC DEMO DATA: not NASA observations.")
@@ -84,7 +98,11 @@ def render(
         "request": job.request.model_dump(mode="json"),
         "synthetic": synthetic,
         "observations_in_processing_order": [o.model_dump(mode="json") for o in observations],
-        "units": {"image": "MJy/sr", "variance": "(MJy/sr)^2"},
+        "units": {
+            "image": frames[0].unit,
+            "variance": "(MJy/sr)^2" if frames[0].has_quality else None,
+        },
+        "resampling": "nearest neighbour" if job.request.source == "neossat" else "bilinear",
         "grid": "ICRS TAN, north up, east left, requested angular span at tangent point",
         "preview": "Shared percentile/asinh stretch across blink frames; FITS keeps linear values",
         "operation": {
@@ -98,6 +116,10 @@ def render(
         else "sum of valid bilinear interpolation weights (0 to 1)",
         "warnings": warnings,
     }
+    if job.request.source == "neossat":
+        provenance["operation"] = "NEOSSat WCS cutout / chronological blink"
+        provenance["coverage"] = "1 for a sampled finite pixel, otherwise 0"
+        provenance["attribution_url"] = "https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/en/neossat/"
     (output / "provenance.json").write_text(
         json.dumps(provenance, indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8"
     )
@@ -110,7 +132,8 @@ async def process_job(job: Job, store: Store, provider: Provider, provider_name:
     frames = []
     for observation in observations:
         body = await provider.fetch(observation, job.request)
-        frames.append(await asyncio.to_thread(align_fits, body, job.request))
+        align = align_neossat if job.request.source == "neossat" else align_fits
+        frames.append(await asyncio.to_thread(align, body, job.request))
         del body
     # Attempt-specific directories avoid collisions with abandoned worker attempts.
     output = store.root / "artifacts" / job.id / str(job.attempts)

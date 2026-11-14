@@ -267,6 +267,20 @@
         "operationId": "observations_api_v1_observations_get",
         "parameters": [
           {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "spherex",
+                "neossat"
+              ],
+              "type": "string",
+              "default": "spherex",
+              "title": "Source"
+            }
+          },
+          {
             "name": "ra",
             "in": "query",
             "required": true,
@@ -767,6 +781,16 @@
       },
       "Capabilities": {
         "properties": {
+          "supplemental_sources": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Supplemental Sources"
+          },
           "version": {
             "type": "string",
             "title": "Version"
@@ -1001,6 +1025,15 @@
       },
       "JobRequest": {
         "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "spherex",
+              "neossat"
+            ],
+            "title": "Source",
+            "default": "spherex"
+          },
           "kind": {
             "$ref": "#/components/schemas/JobKind"
           },
@@ -1065,6 +1098,28 @@
       },
       "Observation": {
         "properties": {
+          "exposure_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exposure Seconds"
+          },
+          "product_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Type"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -1073,7 +1128,8 @@
             "type": "string",
             "enum": [
               "irsa",
-              "demo"
+              "demo",
+              "neossat"
             ],
             "title": "Provider"
           },
@@ -1227,6 +1283,15 @@
       },
       "SkySearch": {
         "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "spherex",
+              "neossat"
+            ],
+            "title": "Source",
+            "default": "spherex"
+          },
           "ra": {
             "type": "number",
             "exclusiveMaximum": 360.0,
