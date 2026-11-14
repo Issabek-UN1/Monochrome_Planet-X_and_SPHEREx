@@ -1,6 +1,6 @@
 # Working in this repository
 
-- This checkout is for branch `Demotest1NonFix`. Commit and push only to `Demotest1NonFix`; do not modify or push `main` or `Demotest1`.
+- This checkout is for branch `Frontfixver`. Commit and push only to `Frontfixver`; do not modify or push `main`, `Demotest1` or `Demotest1NonFix`.
 
 - Read README.md and docs/architecture.md before changing module boundaries.
 - Backend source is backend/src/spherex; keep HTTP, archive adapters, science and storage separate.
