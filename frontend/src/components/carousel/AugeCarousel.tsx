@@ -31,7 +31,7 @@ export const AugeCarousel: React.FC<AugeCarouselProps> = ({
   const startX = useRef(0)
   const currentPos = useRef(0)
   const targetPos = useRef(0)
-  const velocity = useRef(0)
+  const [renderVelocity, setRenderVelocity] = useState(0)
   const dragDistance = useRef(0)
 
   // Filtered targets
@@ -91,7 +91,8 @@ export const AugeCarousel: React.FC<AugeCarouselProps> = ({
     const updatePhysics = () => {
       const prevPos = currentPos.current
       currentPos.current += (targetPos.current - currentPos.current) * 0.085
-      velocity.current = currentPos.current - prevPos
+      const speed = currentPos.current - prevPos
+      setRenderVelocity(previous => Math.abs(previous - speed) > 0.02 ? speed : previous)
 
       // Clamp target within bounds
       if (targetPos.current < 0) targetPos.current = 0
@@ -213,7 +214,7 @@ export const AugeCarousel: React.FC<AugeCarouselProps> = ({
             const translateZOffset = -Math.abs(normalizedOffset) * 45
 
             // Velocity Shear Skew
-            const skewAngle = Math.max(-8, Math.min(8, -velocity.current * 0.18))
+            const skewAngle = Math.max(-8, Math.min(8, -renderVelocity * 0.18))
 
             return (
               <div
@@ -237,7 +238,7 @@ export const AugeCarousel: React.FC<AugeCarouselProps> = ({
                     className="absolute inset-0 h-full w-[140%] max-w-none object-cover transition-opacity duration-300 pointer-events-none"
                     style={{
                       transform: `translateX(${innerParallax}px)`,
-                      filter: Math.abs(velocity.current) > 4 ? 'drop-shadow(2px 0 0 rgba(255,0,0,0.6)) drop-shadow(-2px 0 0 rgba(0,255,255,0.6))' : 'none',
+                      filter: Math.abs(renderVelocity) > 4 ? 'drop-shadow(2px 0 0 rgba(255,0,0,0.6)) drop-shadow(-2px 0 0 rgba(0,255,255,0.6))' : 'none',
                     }}
                   />
 

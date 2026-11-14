@@ -67,7 +67,11 @@ def main():
     hidden = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     if env.get("SKIP_SYNC") != "1":
         subprocess.run(
-            [npm, "ci"], cwd=ROOT / "frontend", env=env, check=True, creationflags=hidden
+            [npm, "ci", "--include=dev"],
+            cwd=ROOT / "frontend",
+            env=env,
+            check=True,
+            creationflags=hidden,
         )
     vite = ROOT / "frontend/node_modules/vite/bin/vite.js"
     if not vite.exists():

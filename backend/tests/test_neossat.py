@@ -142,3 +142,11 @@ def test_neossat_api_and_worker(client, app, settings, monkeypatch):
     # Selecting a NEOSSat ID under the SPHEREx source must never succeed.
     body["source"] = "spherex"
     assert client.post("/api/v1/jobs", json=body).status_code == 422
+
+
+@pytest.mark.parametrize("host", ["ws-cadc.canfar.net", "ws-uv.canfar.net", "ws-sf.canfar.net"])
+def test_cadc_confirmed_storage_nodes(host):
+    url = f"https://{host}/minoc/files/public/cadc:NEOSSAT/a.fits"
+    assert validate_url(url, redirect=True) == url
+    with pytest.raises(ArchiveError):
+        validate_url(url.replace("cadc:NEOSSAT", "cadc:OTHER"), redirect=True)

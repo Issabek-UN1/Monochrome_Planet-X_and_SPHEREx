@@ -21,14 +21,26 @@ interface SkyExplorerProps {
 }
 
 export const SkyExplorer: React.FC<SkyExplorerProps> = ({ initialTarget }) => {
-  // Source selector: SPHEREx or NEOSSat
   const [source, setSource] = useState<'spherex' | 'neossat'>('spherex')
+  // A new mission/target starts a fresh request session; cleanup aborts the previous session.
+  return <SkyExplorerSession
+    key={`${source}:${initialTarget?.id}:${initialTarget?.ra}:${initialTarget?.dec}`}
+    initialTarget={initialTarget} source={source} onSourceChange={setSource}
+  />
+}
+
+interface SkyExplorerSessionProps extends SkyExplorerProps {
+  source: 'spherex' | 'neossat'
+  onSourceChange: (source: 'spherex' | 'neossat') => void
+}
+
+const SkyExplorerSession: React.FC<SkyExplorerSessionProps> = ({ initialTarget, source, onSourceChange }) => {
 
   // Search parameters
   const [ra, setRa] = useState<number>(initialTarget?.ra ?? 133.7951)
   const [dec, setDec] = useState<number>(initialTarget?.dec ?? -7.2451)
-  const [radiusDeg, setRadiusDeg] = useState<number>(0.1)
-  const [fovDeg, setFovDeg] = useState<number>(0.2)
+  const [radiusDeg, setRadiusDeg] = useState<number>(initialTarget?.radius_deg ?? 0.1)
+  const [fovDeg, setFovDeg] = useState<number>(initialTarget?.fov_deg ?? 0.2)
   const sizePx = 256
 
   // Search state
@@ -72,24 +84,6 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({ initialTarget }) => {
 
   // Cancel requests on navigation; changing sources cannot reuse old observation IDs.
   useEffect(() => () => { searchAbort.current?.abort(); submitAbort.current?.abort() }, [])
-  useEffect(() => {
-    searchAbort.current?.abort()
-    submitAbort.current?.abort()
-    setSearchResult(null)
-    setSelectedObsIds([])
-    setActiveJob(null)
-    setIsSearching(false)
-    setIsJobSubmitting(false)
-  }, [source])
-  useEffect(() => {
-    if (initialTarget) {
-      setRa(initialTarget.ra)
-      setDec(initialTarget.dec)
-      setRadiusDeg(initialTarget.radius_deg)
-      setFovDeg(initialTarget.fov_deg)
-    }
-  }, [initialTarget])
-
   const handleCreateJob = async (kind: 'blink' | 'difference' | 'stack' | 'cutout') => {
     if (!searchResult || !selectedObsIds.length) return
     submitAbort.current?.abort()
@@ -171,7 +165,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({ initialTarget }) => {
         {/* Observatory Source Selector */}
         <div className="flex items-center space-x-2 rounded-xl border border-white/15 bg-black/60 p-1 font-mono text-xs">
           <button
-            onClick={() => setSource('spherex')}
+            onClick={() => onSourceChange('spherex')}
             className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 transition-colors ${
               source === 'spherex'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
@@ -182,7 +176,7 @@ export const SkyExplorer: React.FC<SkyExplorerProps> = ({ initialTarget }) => {
             <span>SPHEREx IR</span>
           </button>
           <button
-            onClick={() => setSource('neossat')}
+            onClick={() => onSourceChange('neossat')}
             className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 transition-colors ${
               source === 'neossat'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
