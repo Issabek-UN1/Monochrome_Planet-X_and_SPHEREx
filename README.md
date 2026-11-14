@@ -104,6 +104,17 @@ uv run python scripts/export_openapi.py
 uv run python scripts/verify_irsa.py
 ```
 
+Проверка пяти обязательных полей из условия и создание реальных blink-анимаций:
+
+```text
+uv run python scripts/verify_targets.py
+```
+
+Результаты сохраняются локально в `data/target-validation`; пригодность кадров
+не означает подтверждённое обнаружение или движение целевого объекта.
+Готовые координаты полей доступны через `GET /api/v1/targets`.
+Статус каждого источника из Resources указан в [таблице источников](docs/data-sources.md).
+
 ## Docker
 
 ```text

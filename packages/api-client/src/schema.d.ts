@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Targets */
+        get: operations["targets_api_v1_targets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/observations": {
         parameters: {
             query?: never;
@@ -340,6 +357,34 @@ export interface components {
              */
             limit: number;
         };
+        /** TestTarget */
+        TestTarget: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Ra */
+            ra: number;
+            /** Dec */
+            dec: number;
+            /**
+             * Radius Deg
+             * @default 0.15
+             */
+            radius_deg: number;
+            /**
+             * Fov Deg
+             * @default 0.3
+             */
+            fov_deg: number;
+            /** Coordinate Source */
+            coordinate_source: string;
+            /**
+             * Notes
+             * @default Reference field centre; no proper-motion/parallax propagation. The wide field accommodates motion since the reference epoch. Archive coverage does not establish detection of the named object.
+             */
+            notes: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -481,6 +526,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Capabilities"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Artifact no longer available */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Upstream archive unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    targets_api_v1_targets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestTarget"][];
                 };
             };
             /** @description Resource not found */
