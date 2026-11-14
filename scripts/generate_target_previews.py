@@ -5,12 +5,8 @@ directly into `frontend/public/data/targets/{target_id}/`.
 """
 
 import asyncio
-import io
 import json
 from pathlib import Path
-
-import numpy as np
-from PIL import Image
 
 from spherex.config import Settings
 from spherex.models import JobRequest, SkySearch
@@ -33,7 +29,9 @@ async def generate_for_target(target, output_dir: Path, irsa_provider, demo_prov
         result = await asyncio.wait_for(irsa_provider.search(query), timeout=6.0)
         # Find 2 observations from the same detector
         for det in range(1, 7):
-            det_obs = [o for o in result.observations if o.detector == det and o.mjd_start is not None]
+            det_obs = [
+                o for o in result.observations if o.detector == det and o.mjd_start is not None
+            ]
             if len(det_obs) >= 2:
                 observations = det_obs[:2]
                 active_provider = irsa_provider
@@ -46,7 +44,8 @@ async def generate_for_target(target, output_dir: Path, irsa_provider, demo_prov
         # Use Demo provider to generate deterministic scientific epochs
         query = SkySearch(ra=target.ra, dec=target.dec, radius_deg=target.radius_deg, limit=10)
         result = await demo_provider.search(query)
-        observations = [result.observations[0], result.observations[6]]  # Epoch 0 and Epoch 1 in Detector 1
+        # Epoch 0 and Epoch 1 in Detector 1
+        observations = [result.observations[0], result.observations[6]]
         active_provider = demo_provider
         print(f"  [SPHEREx Science Engine] Synthesizing survey epochs for {target.id}")
 
@@ -115,7 +114,10 @@ async def generate_for_target(target, output_dir: Path, irsa_provider, demo_prov
         "obs2_id": observations[1].id,
         "mjd_epoch1": observations[0].mjd_start,
         "mjd_epoch2": observations[1].mjd_start,
-        "wavelength_range_um": [observations[0].wavelength_min_um, observations[0].wavelength_max_um],
+        "wavelength_range_um": [
+            observations[0].wavelength_min_um,
+            observations[0].wavelength_max_um,
+        ],
     }
     (target_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"  Saved artifacts to {target_dir}")
@@ -126,7 +128,6 @@ async def main():
     output_dir = repo_root / "frontend" / "public" / "targets"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    settings = Settings(provider="demo", data_dir=repo_root / "data")
     demo_provider = DemoProvider()
     irsa_provider = IRSAProvider(Settings(provider="irsa", data_dir=repo_root / "data"))
 
