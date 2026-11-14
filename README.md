@@ -47,6 +47,18 @@ Swagger: [localhost:8000/docs](http://localhost:8000/docs).
 Без `.env` по умолчанию используется `irsa`. Провайдер никогда не подменяет реальные данные
 демонстрационными при ошибке архива. API и worker должны иметь одинаковые настройки и `data_dir`.
 
+## Запуск фронтенда
+
+Фронтенд реализован на Vite + React + TypeScript + Three.js:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Интерфейс откроется на [http://localhost:5173](http://localhost:5173). Включает кинематическую карусель (Auge XP style), 3D небесную сферу SPHEREx, Sky Explorer и 102-полосную лабораторию спектров.
+
 ## Что уже работает
 
 - Поиск наблюдений по RA/Dec, радиусу, интервалу MJD и диапазону длин волн.
