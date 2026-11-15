@@ -1,5 +1,7 @@
 x-backend: &backend
-  build: .
+  build:
+    context: .
+    target: backend
   environment:
     SPHEREX_PROVIDER: ${SPHEREX_PROVIDER:-irsa}
     SPHEREX_COLLECTIONS: '${SPHEREX_COLLECTIONS:-["spherex_dr1","spherex_qr3"]}'

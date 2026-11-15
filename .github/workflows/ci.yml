@@ -30,7 +30,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
+      - run: docker compose -f compose.production.yaml config --quiet
       - run: docker build -t monochrome-spherex:ci .
+      - run: docker run -d --name spherex-web -e SPHEREX_PROVIDER=demo -e PORT=8787 monochrome-spherex:ci
+      - run: docker exec spherex-web python scripts/smoke_deployment.py --url http://127.0.0.1:8787
+      - run: docker stop --time 30 spherex-web
+      - run: test "$(docker inspect -f '{{.State.ExitCode}}' spherex-web)" = "0"
+      - if: always()
+        run: docker logs spherex-web
+      - if: always()
+        run: docker rm -f spherex-web
   api-client:
     runs-on: ubuntu-latest
     defaults:

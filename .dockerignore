@@ -3,8 +3,17 @@
 .uv-cache
 .env
 .env.*
+**/.env
+**/.env.*
 data
 **/__pycache__
 .pytest_cache
 .ruff_cache
 node_modules
+**/node_modules
+**/dist
+.npm-cache
+datainfo
+**/.venv
+**/.git
+*.log

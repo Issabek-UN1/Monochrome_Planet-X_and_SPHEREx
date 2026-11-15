@@ -1,0 +1,27 @@
+# Free trial deployment. SQLite/artifacts are ephemeral and lost on restart/sleep.
+# Optional paid profile with a persistent disk: render.persistent.yaml.
+services:
+  - type: web
+    name: monochrome-spherex
+    runtime: docker
+    repo: https://github.com/Issabek-UN1/Monochrome_Planet-X_and_SPHEREx
+    branch: Site_Deploy
+    region: frankfurt
+    plan: free
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    autoDeployTrigger: "off"
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: SPHEREX_PROVIDER
+        value: irsa
+      - key: SPHEREX_DATA_DIR
+        value: /app/data
+      - key: SPHEREX_CORS_ORIGINS
+        value: '[]'
+      - key: SPHEREX_MAX_PENDING_JOBS
+        value: "10"
+      - key: SPHEREX_HTTP_TIMEOUT_SECONDS
+        value: "120"

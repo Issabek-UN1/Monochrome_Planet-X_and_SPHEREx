@@ -5,6 +5,12 @@
 
 ## Локальная настройка
 
+Production-образ раздаёт frontend и API с одного origin: `VITE_API_BASE_URL`
+не задаётся, dev proxy не используется. Пути API/артефактов сохраняются.
+Статика монтируется последней и не заменяет ошибки API HTML-страницей.
+Query/hash-ссылки продолжают открываться через `/`. Инструкция:
+[deployment.md](deployment.md).
+
 NEOSSat доступен с `source=neossat` в поиске и теле задачи, независимо от demo/irsa
 основного источника. Поддерживаются cutout/blink; в задаче укажите
 `subtract_zodi=false`, `reject_flags=0`. Единицы — отсчёты детектора.

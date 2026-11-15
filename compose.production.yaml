@@ -1,0 +1,22 @@
+services:
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      PORT: "8000"
+      SPHEREX_PROVIDER: ${SPHEREX_PROVIDER:-irsa}
+      SPHEREX_COLLECTIONS: '${SPHEREX_COLLECTIONS:-["spherex_dr1","spherex_qr3"]}'
+      SPHEREX_DATA_DIR: /app/data
+      SPHEREX_CORS_ORIGINS: '[]'
+      SPHEREX_MAX_PENDING_JOBS: "10"
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8000}:8000"
+    volumes:
+      - spherex-data:/app/data
+    init: true
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+volumes:
+  spherex-data:
