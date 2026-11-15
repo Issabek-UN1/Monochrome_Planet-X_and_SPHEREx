@@ -140,6 +140,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/{job_id}/spectrum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Spectrum */
+        get: operations["spectrum_api_v1_jobs__job_id__spectrum_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/{job_id}/artifacts/{name}": {
         parameters: {
             query?: never;
@@ -255,7 +272,7 @@ export interface components {
          * JobKind
          * @enum {string}
          */
-        JobKind: "cutout" | "stack" | "difference" | "blink";
+        JobKind: "spectrum" | "cutout" | "stack" | "difference" | "blink";
         /** JobRequest */
         JobRequest: {
             /**
@@ -378,6 +395,72 @@ export interface components {
              * @default 100
              */
             limit: number;
+        };
+        /** SpectrumResult */
+        SpectrumResult: {
+            /** Ra */
+            ra: number;
+            /** Dec */
+            dec: number;
+            /** Sampled Ra */
+            sampled_ra: number;
+            /** Sampled Dec */
+            sampled_dec: number;
+            /** Source Url */
+            source_url: string;
+            /** Release */
+            release: string;
+            /** Reject Flags */
+            reject_flags: number;
+            /** Source Etag */
+            source_etag?: string | null;
+            /**
+             * Downloaded Bytes
+             * @default 0
+             */
+            downloaded_bytes: number;
+            /**
+             * Synthetic
+             * @default false
+             */
+            synthetic: boolean;
+            /**
+             * Method
+             * @default nearest mosaic pixel; no source photometry or local background subtraction
+             */
+            method: string;
+            /**
+             * Unit
+             * @default MJy/sr
+             */
+            unit: string;
+            /** Samples */
+            samples: components["schemas"]["SpectrumSample"][];
+            /** Warnings */
+            warnings: string[];
+        };
+        /** SpectrumSample */
+        SpectrumSample: {
+            /** Channel */
+            channel: number;
+            /** Detector */
+            detector: number;
+            /** Subchannel */
+            subchannel: number;
+            /** Wavelength Um */
+            wavelength_um: number;
+            /** Surface Brightness Mjy Sr */
+            surface_brightness_mjy_sr: number | null;
+            /** Uncertainty Mjy Sr */
+            uncertainty_mjy_sr?: number | null;
+            /** Nhits */
+            nhits: number;
+            /** Flags */
+            flags: number;
+            /** Usable */
+            usable: boolean;
+            /** Exclusion Reason */
+            exclusion_reason?: string | null;
         };
         /** TestTarget */
         TestTarget: {
@@ -856,6 +939,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Artifact no longer available */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Upstream archive unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    spectrum_api_v1_jobs__job_id__spectrum_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpectrumResult"];
                 };
             };
             /** @description Resource not found */

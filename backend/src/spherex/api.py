@@ -22,6 +22,7 @@ from spherex.models import (
     Observation,
     SearchResult,
     SkySearch,
+    SpectrumResult,
 )
 from spherex.processing import validate_observations
 from spherex.providers import make_provider
@@ -130,7 +131,8 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
             "provider": settings.provider,
             "synthetic": settings.provider == "demo",
             "collections": ["synthetic"] if settings.provider == "demo" else settings.collections,
-            "operations": ["cutout", "stack", "difference", "blink"],
+            "operations": ["cutout", "stack", "difference", "blink"]
+            + (["spectrum"] if settings.provider == "irsa" else []),
             "bands": BANDS,
             "coordinate_frame": "ICRS",
             "time_unit": "MJD",
@@ -224,6 +226,17 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
         if result is None:
             raise HTTPException(404, "Job not found")
         return result
+
+    @app.get("/api/v1/jobs/{job_id}/spectrum", response_model=SpectrumResult, tags=["jobs"])
+    def spectrum(request: Request, job_id: JobId):
+        store = request.app.state.store
+        result = store.job(job_id)
+        if result is None or result.status != "succeeded" or result.request.kind != "spectrum":
+            raise HTTPException(404, "Completed spectrum not found")
+        path = store.root / "artifacts" / job_id / str(result.attempts) / "spectrum.json"
+        if not path.is_file():
+            raise HTTPException(410, "Spectrum no longer available")
+        return SpectrumResult.model_validate_json(path.read_text(encoding="utf-8"))
 
     @app.get("/api/v1/jobs/{job_id}/artifacts/{name}", tags=["jobs"], response_class=FileResponse)
     def artifact(request: Request, job_id: JobId, name: str):

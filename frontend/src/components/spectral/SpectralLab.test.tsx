@@ -4,6 +4,7 @@ import { SpectralLab } from './SpectralLab'
 afterEach(cleanup)
 it('labels model output honestly and supports molecule and detector controls', () => {
   render(<SpectralLab />)
+  fireEvent.click(screen.getByText('ILLUSTRATIVE MODELS / REFERENCE ONLY'))
   expect(screen.getByText('ILLUSTRATIVE MODELS')).toBeTruthy()
   expect(screen.getByText('NO CLASSIFICATION INFERRED')).toBeTruthy()
   const methane = screen.getByRole('button', { name: /Methane reference/ })

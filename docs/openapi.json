@@ -696,6 +696,79 @@
         }
       }
     },
+    "/api/v1/jobs/{job_id}/spectrum": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Spectrum",
+        "operationId": "spectrum_api_v1_jobs__job_id__spectrum_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpectrumResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Artifact no longer available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream archive unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/jobs/{job_id}/artifacts/{name}": {
       "get": {
         "tags": [
@@ -1034,6 +1107,7 @@
       "JobKind": {
         "type": "string",
         "enum": [
+          "spectrum",
           "cutout",
           "stack",
           "difference",
@@ -1062,7 +1136,7 @@
             },
             "type": "array",
             "maxItems": 12,
-            "minItems": 1,
+            "minItems": 0,
             "title": "Observation Ids"
           },
           "ra": {
@@ -1407,6 +1481,181 @@
           "dec"
         ],
         "title": "SkySearch"
+      },
+      "SpectrumResult": {
+        "properties": {
+          "ra": {
+            "type": "number",
+            "exclusiveMaximum": 360.0,
+            "minimum": 0.0,
+            "title": "Ra"
+          },
+          "dec": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Dec"
+          },
+          "sampled_ra": {
+            "type": "number",
+            "exclusiveMaximum": 360.0,
+            "minimum": 0.0,
+            "title": "Sampled Ra"
+          },
+          "sampled_dec": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Sampled Dec"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "release": {
+            "type": "string",
+            "title": "Release"
+          },
+          "reject_flags": {
+            "type": "integer",
+            "title": "Reject Flags"
+          },
+          "source_etag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Etag"
+          },
+          "downloaded_bytes": {
+            "type": "integer",
+            "title": "Downloaded Bytes",
+            "default": 0
+          },
+          "synthetic": {
+            "type": "boolean",
+            "title": "Synthetic",
+            "default": false
+          },
+          "method": {
+            "type": "string",
+            "title": "Method",
+            "default": "nearest mosaic pixel; no source photometry or local background subtraction"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "default": "MJy/sr"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/SpectrumSample"
+            },
+            "type": "array",
+            "title": "Samples"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ra",
+          "dec",
+          "sampled_ra",
+          "sampled_dec",
+          "source_url",
+          "release",
+          "reject_flags",
+          "samples",
+          "warnings"
+        ],
+        "title": "SpectrumResult"
+      },
+      "SpectrumSample": {
+        "properties": {
+          "channel": {
+            "type": "integer",
+            "title": "Channel"
+          },
+          "detector": {
+            "type": "integer",
+            "title": "Detector"
+          },
+          "subchannel": {
+            "type": "integer",
+            "title": "Subchannel"
+          },
+          "wavelength_um": {
+            "type": "number",
+            "title": "Wavelength Um"
+          },
+          "surface_brightness_mjy_sr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surface Brightness Mjy Sr"
+          },
+          "uncertainty_mjy_sr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty Mjy Sr"
+          },
+          "nhits": {
+            "type": "integer",
+            "title": "Nhits"
+          },
+          "flags": {
+            "type": "integer",
+            "title": "Flags"
+          },
+          "usable": {
+            "type": "boolean",
+            "title": "Usable"
+          },
+          "exclusion_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclusion Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "channel",
+          "detector",
+          "subchannel",
+          "wavelength_um",
+          "surface_brightness_mjy_sr",
+          "nhits",
+          "flags",
+          "usable"
+        ],
+        "title": "SpectrumSample"
       },
       "TestTarget": {
         "properties": {

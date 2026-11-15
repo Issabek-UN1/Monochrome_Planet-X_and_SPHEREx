@@ -3,6 +3,7 @@ import { Download, FlaskConical, Info, ScanLine } from 'lucide-react'
 import { type EnhancedTarget } from '../../api/client'
 import { DETECTORS, planck } from '../../utils/astronomy'
 import { playTone } from '../../utils/audio'
+import { MeasuredSpectrum } from './MeasuredSpectrum'
 const MOLECULES = [
   {
     id: 'methane',
@@ -33,7 +34,7 @@ const MOLECULES = [
     centres: [4.67],
   },
 ]
-export const SpectralLab = ({
+const ModelReference = ({
   initialTarget,
 }: {
   initialTarget?: EnhancedTarget | null
@@ -110,9 +111,9 @@ export const SpectralLab = ({
       <div className="science-notice">
         <Info size={17} />
         <span>
-          No measured 102-channel spectrum is returned by the current API.
-          Curves are normalized Planck/reference models, not observations or
-          atmospheric classifications. Marker windows are approximate.
+          This reference section shows normalized Planck models. Load real
+          DR1 measurements in the panel above. Model curves are not observations
+          or atmospheric classifications; marker windows are approximate.
         </span>
       </div>
       <div className="spectral-grid">
@@ -411,3 +412,20 @@ export const SpectralLab = ({
     </div>
   )
 }
+
+export const SpectralLab = ({
+  initialTarget,
+}: {
+  initialTarget?: EnhancedTarget | null
+}) => (
+  <>
+    <MeasuredSpectrum
+      key={`${initialTarget?.ra}:${initialTarget?.dec}`}
+      target={initialTarget}
+    />
+    <details className="quality-notes">
+      <summary>ILLUSTRATIVE MODELS / REFERENCE ONLY</summary>
+      <ModelReference initialTarget={initialTarget} />
+    </details>
+  </>
+)

@@ -33,5 +33,6 @@ class Settings(BaseSettings):
     search_ttl_seconds: int = Field(900, ge=0)
     http_timeout_seconds: float = Field(120, gt=0, le=300)
     max_download_bytes: int = Field(64 * 1024 * 1024, ge=1024)
+    max_cube_download_bytes: int = Field(384 * 1024 * 1024, ge=1024)
     max_pending_jobs: int = Field(100, ge=1)
     lease_seconds: int = Field(1800, ge=60)
