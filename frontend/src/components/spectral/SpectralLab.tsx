@@ -117,7 +117,7 @@ const ModelReference = ({
         </span>
       </div>
       <div className="spectral-grid">
-        <section className="hud-panel spectral-chart-panel">
+        <section className="hud-panel spectral-chart-panel" data-tour-id="spec-chart">
           <div className="panel-heading">
             <h2>
               <span>01</span>Spectral energy distribution
@@ -285,7 +285,7 @@ const ModelReference = ({
             coverage; the small gaps are retained.
           </p>
         </section>
-        <aside className="spectral-controls">
+        <aside className="spectral-controls" data-tour-id="spec-models">
           <section className="hud-panel">
             <div className="panel-heading">
               <h2>
@@ -380,6 +380,7 @@ const ModelReference = ({
       </div>
       <section
         className="detector-strip"
+        data-tour-id="spec-controls"
         aria-label="Detector wavelength coverage"
       >
         {DETECTORS.map((item) => (
@@ -415,13 +416,16 @@ const ModelReference = ({
 
 export const SpectralLab = ({
   initialTarget,
+  onOpenBriefing,
 }: {
   initialTarget?: EnhancedTarget | null
+  onOpenBriefing?: (initialStepIndex?: number) => void
 }) => (
   <>
     <MeasuredSpectrum
       key={`${initialTarget?.ra}:${initialTarget?.dec}`}
       target={initialTarget}
+      onOpenBriefing={onOpenBriefing}
     />
     <details className="quality-notes">
       <summary>ILLUSTRATIVE MODELS / REFERENCE ONLY</summary>

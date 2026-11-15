@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
+import { HelpCircle } from 'lucide-react'
 import type { Job, SpectrumResult } from '@monochrome-spherex/api-client'
 import { type EnhancedTarget, spherexApi } from '../../api/client'
 import { ErrorNotice, Panel } from '../common/Panel'
 import { Downloads } from '../common/ArtifactViewer'
+import { useI18n } from '../../i18n'
 
 export function MeasuredSpectrum({
   target,
+  onOpenBriefing,
 }: {
   target?: EnhancedTarget | null
+  onOpenBriefing?: (initialStepIndex?: number) => void
 }) {
+  const { t } = useI18n()
   const [ra, setRa] = useState(target?.ra ?? 133.79512916666667)
   const [dec, setDec] = useState(target?.dec ?? -7.245147222222222)
   const [request, setRequest] = useState<{ ra: number; dec: number } | null>(
@@ -107,9 +112,23 @@ export function MeasuredSpectrum({
             brightness, with quality flags.
           </p>
         </div>
-        <span className="view-tag">OBSERVATIONAL DATA / IRSA DR1</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onOpenBriefing && (
+            <button
+              type="button"
+              className="tab-guide-trigger"
+              onClick={() => onOpenBriefing(4)}
+              aria-label={t('briefing.triggerAria', 'Open Spectral Lab Guide')}
+            >
+              <HelpCircle size={12} />
+              <span>{t('briefing.guide', 'GUIDE')}</span>
+            </button>
+          )}
+          <span className="view-tag">OBSERVATIONAL DATA / IRSA DR1</span>
+        </div>
       </div>
       <Panel
+        dataTourId="spec-selector"
         number="01"
         title="Extract an observed spectrum"
         meta="ICRS / DR1 ALL-SKY CUBE"

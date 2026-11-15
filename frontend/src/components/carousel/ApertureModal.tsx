@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   Code2,
   Film,
+  HelpCircle,
   Maximize2,
   Minus,
   Pause,
@@ -137,7 +138,7 @@ function ApertureStage({
     }
   }
   return (
-    <div className="aperture-stage-wrap">
+    <div className="aperture-stage-wrap" data-tour-step="comparator">
       <div className="aperture-toolbar">
         <div className="segmented">
           {[1, 2, 4].map((value) => (
@@ -269,6 +270,13 @@ function ApertureStage({
                     type="button"
                     className={`epoch-mode-pill ${epochMode === m ? 'active' : ''}`}
                     aria-pressed={epochMode === m}
+                    data-tour-id={
+                      m === 'split'
+                        ? 'comp-split'
+                        : m === 'blink'
+                          ? 'comp-blink'
+                          : 'comp-vector'
+                    }
                     onClick={(e) => {
                       e.stopPropagation()
                       handlePillClick(m)
@@ -324,6 +332,13 @@ function ApertureStage({
                     type="button"
                     className={`epoch-mode-pill ${epochMode === m ? 'active' : ''}`}
                     aria-pressed={epochMode === m}
+                    data-tour-id={
+                      m === 'split'
+                        ? 'comp-split'
+                        : m === 'blink'
+                          ? 'comp-blink'
+                          : 'comp-vector'
+                    }
                     onClick={() => {
                       handlePillClick(m)
                     }}
@@ -415,6 +430,7 @@ export interface ApertureModalProps {
   onInclination?: (value: number) => void
   animateOrbit?: boolean
   onAnimateOrbit?: (value: boolean) => void
+  onOpenBriefing?: (initialStepIndex?: number) => void
 }
 export function ApertureModal({
   target,
@@ -425,6 +441,7 @@ export function ApertureModal({
   onInclination,
   animateOrbit = true,
   onAnimateOrbit,
+  onOpenBriefing,
 }: ApertureModalProps) {
   const { lang, t } = useI18n()
   const [epochMode, setEpochMode] = useState<EpochComparatorMode>('split')
@@ -543,6 +560,17 @@ export function ApertureModal({
             The aperture<span>.</span>
           </h1>
         </div>
+        {onOpenBriefing && (
+          <button
+            type="button"
+            className="tab-guide-trigger"
+            onClick={() => onOpenBriefing(0)}
+            aria-label={t('briefing.triggerAria', 'Open Target Comparator Guide')}
+          >
+            <HelpCircle size={12} />
+            <span>{t('briefing.guide', 'GUIDE')}</span>
+          </button>
+        )}
       </div>
       <div className="comparator-grid">
         <aside>

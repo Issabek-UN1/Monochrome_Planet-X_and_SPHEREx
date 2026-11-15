@@ -11,6 +11,7 @@ import { VaultDirectory } from './components/vault/VaultDirectory'
 import { CelestialSphereCanvas } from './components/3d/CelestialSphereCanvas'
 import { SpectralLab } from './components/spectral/SpectralLab'
 import { ApertureModal } from './components/carousel/ApertureModal'
+import { MissionBriefing } from './components/tour/MissionBriefing'
 import { I18nProvider, useI18n } from './i18n'
 
 function route() {
@@ -59,7 +60,14 @@ const AppContent = () => {
     [animateOrbit, setAnimateOrbit] = useState(true)
   const [scrollY, setScrollY] = useState(0)
   const [isScrollingUp, setIsScrollingUp] = useState(false)
+  const [briefingOpen, setBriefingOpen] = useState(false)
+  const [briefingStep, setBriefingStep] = useState(0)
   const pipeline = usePipeline()
+
+  const handleOpenBriefing = (stepIndex = 0) => {
+    setBriefingStep(stepIndex)
+    setBriefingOpen(true)
+  }
 
   useEffect(() => {
     let lastScrollY = typeof window !== 'undefined' ? window.scrollY : 0
@@ -164,6 +172,7 @@ const AppContent = () => {
         grid={grid}
         onGrid={() => setGrid((old) => !old)}
         minimal={isMinimalHeader}
+        onOpenBriefing={() => handleOpenBriefing(0)}
       />
       <main
         id="mission-main"
@@ -257,12 +266,13 @@ const AppContent = () => {
                 onInclination={setInclination}
                 animateOrbit={animateOrbit}
                 onAnimateOrbit={setAnimateOrbit}
+                onOpenBriefing={handleOpenBriefing}
               />
             </div>
           )}
           {mode === 'spectral' && (
             <div className="mode-content" key="spectral">
-              <SpectralLab initialTarget={target} />
+              <SpectralLab initialTarget={target} onOpenBriefing={handleOpenBriefing} />
             </div>
           )}
           {mode === 'explorer' && (
@@ -272,6 +282,7 @@ const AppContent = () => {
                 initialTarget={target}
                 pipeline={pipeline}
                 onTarget={selectTarget}
+                onOpenBriefing={handleOpenBriefing}
               />
             </div>
           )}
@@ -286,6 +297,13 @@ const AppContent = () => {
           {t('footer.coords')}
         </span>
       </footer>
+      <MissionBriefing
+        isOpen={briefingOpen}
+        initialStepIndex={briefingStep}
+        onClose={() => setBriefingOpen(false)}
+        onSelectMode={selectMode}
+        currentMode={mode}
+      />
     </div>
   )
 }

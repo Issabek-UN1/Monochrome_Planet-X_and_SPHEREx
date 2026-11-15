@@ -57,6 +57,7 @@ export const TargetCarousel: React.FC<TargetCarouselProps> = ({
     <section
       className={`target-rail-section ${className}`.trim()}
       aria-label={t('carousel.ariaLabel', 'Challenge targets')}
+      data-tour-id="comp-targets"
     >
       <div className="target-rail" ref={rail}>
         {CURATED_TARGETS.map((item, itemIndex) => {

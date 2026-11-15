@@ -5,15 +5,17 @@ export function Panel({
   meta,
   children,
   className = '',
+  dataTourId,
 }: {
   number: string
   title: string
   meta?: string
   children: ReactNode
   className?: string
+  dataTourId?: string
 }) {
   return (
-    <section className={`hud-panel ${className}`}>
+    <section className={`hud-panel ${className}`} data-tour-id={dataTourId}>
       <span className="panel-corner corner-tl" aria-hidden="true">+</span>
       <span className="panel-corner corner-tr" aria-hidden="true">+</span>
       <span className="panel-corner corner-bl" aria-hidden="true">+</span>

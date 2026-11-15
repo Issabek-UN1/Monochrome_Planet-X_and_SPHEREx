@@ -3,6 +3,7 @@ import {
   Check,
   ChevronDown,
   Film,
+  HelpCircle,
   Layers,
   Minus,
   Radio,
@@ -21,8 +22,14 @@ interface Props {
   initialTarget?: EnhancedTarget | null
   pipeline?: Pipeline
   onTarget?: (target: EnhancedTarget) => void
+  onOpenBriefing?: (initialStepIndex?: number) => void
 }
-export const SkyExplorer = ({ initialTarget, pipeline, onTarget }: Props) => {
+export const SkyExplorer = ({
+  initialTarget,
+  pipeline,
+  onTarget,
+  onOpenBriefing,
+}: Props) => {
   const [source, setSource] = useState<'spherex' | 'neossat'>(
     pipeline?.result?.query.source ?? 'spherex',
   )
@@ -37,6 +44,7 @@ export const SkyExplorer = ({ initialTarget, pipeline, onTarget }: Props) => {
       }}
       pipeline={pipeline}
       onTarget={onTarget}
+      onOpenBriefing={onOpenBriefing}
     />
   )
 }
@@ -50,6 +58,7 @@ function ExplorerSession({
   onSource,
   pipeline,
   onTarget,
+  onOpenBriefing,
 }: SessionProps) {
   const { t } = useI18n()
   const local = usePipeline(),
@@ -173,23 +182,36 @@ function ExplorerSession({
           </h1>
           <p>Point at the sky. Select an epoch. Follow what changes.</p>
         </div>
-        <div className="source-switch" aria-label="Data source">
-          <button
-            aria-pressed={source === 'spherex'}
-            className={source === 'spherex' ? 'selected' : ''}
-            onClick={() => onSource('spherex')}
-          >
-            <Radio size={16} />
-            SPHEREx IR
-          </button>
-          <button
-            aria-pressed={source === 'neossat'}
-            className={source === 'neossat' ? 'selected' : ''}
-            onClick={() => onSource('neossat')}
-          >
-            <Satellite size={16} />
-            NEOSSat CADC
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onOpenBriefing && (
+            <button
+              type="button"
+              className="tab-guide-trigger"
+              onClick={() => onOpenBriefing(8)}
+              aria-label={t('briefing.triggerAria', 'Open Sky Explorer Guide')}
+            >
+              <HelpCircle size={12} />
+              <span>{t('briefing.guide', 'GUIDE')}</span>
+            </button>
+          )}
+          <div className="source-switch" aria-label="Data source" data-tour-id="exp-search">
+            <button
+              aria-pressed={source === 'spherex'}
+              className={source === 'spherex' ? 'selected' : ''}
+              onClick={() => onSource('spherex')}
+            >
+              <Radio size={16} />
+              SPHEREx IR
+            </button>
+            <button
+              aria-pressed={source === 'neossat'}
+              className={source === 'neossat' ? 'selected' : ''}
+              onClick={() => onSource('neossat')}
+            >
+              <Satellite size={16} />
+              NEOSSat CADC
+            </button>
+          </div>
         </div>
       </div>
       <div className="preset-row">
@@ -230,6 +252,7 @@ function ExplorerSession({
                 load()
               }}
               className="pointing-form"
+              data-tour-id="exp-coords"
             >
               <label htmlFor="point-ra">
                 Right ascension <span>α / 0–360°</span>
@@ -405,7 +428,7 @@ function ExplorerSession({
             </div>
           </Panel>
         </div>
-        <div className="explorer-results">
+        <div className="explorer-results" data-tour-id="exp-jobs">
           <Panel
             number="03"
             title="Processing deck"

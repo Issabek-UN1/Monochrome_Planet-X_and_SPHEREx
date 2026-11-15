@@ -13,6 +13,7 @@ interface Props {
   grid: boolean
   onGrid: () => void
   minimal?: boolean
+  onOpenBriefing?: () => void
 }
 
 export function Header({
@@ -23,6 +24,7 @@ export function Header({
   grid,
   onGrid,
   minimal = false,
+  onOpenBriefing,
 }: Props) {
   const { lang, setLang, t } = useI18n()
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
@@ -82,20 +84,31 @@ export function Header({
   return (
     <header className="command-deck">
       <div className="deck-bar">
-        <a
-          className="brand"
-          href="#vault"
-          onClick={(event) => {
-            event.preventDefault()
-            onMode('vault')
-          }}
-          aria-label="Monochrome orbital vault"
-        >
-          <span className="brand-mark">
-            <Orbit size={20} />
-          </span>
-          <span>MONOCHROME</span>
-        </a>
+        <div className="brand-group">
+          <a
+            className="brand"
+            href="#vault"
+            onClick={(event) => {
+              event.preventDefault()
+              onMode('vault')
+            }}
+            aria-label="Monochrome orbital vault"
+          >
+            <span className="brand-mark">
+              <Orbit size={20} />
+            </span>
+            <span>MONOCHROME</span>
+          </a>
+          <button
+            type="button"
+            className="briefing-trigger-pill"
+            onClick={onOpenBriefing}
+            aria-label={t('briefing.triggerAria', 'Open mission briefing tour')}
+            title={t('briefing.triggerAria', 'Open mission briefing tour')}
+          >
+            <span>{t('briefing.trigger', 'BRIEFING')}</span>
+          </button>
+        </div>
         <nav
           className={`mode-nav ${minimal ? 'mode-nav-hidden' : 'mode-nav-visible'}`}
           ref={navRef}

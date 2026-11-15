@@ -213,6 +213,60 @@ export const translations: Record<Language, TranslationDictionary> = {
     'explorer.observationPipeline': 'Observation pipeline',
     'explorer.scientificViewport': 'Scientific viewport',
 
+    // Mission Briefing Onboarding Tour
+    'briefing.trigger': 'BRIEFING',
+    'briefing.triggerAria': 'Open mission briefing tour',
+    'briefing.guide': 'GUIDE',
+    'briefing.prev': 'PREV',
+    'briefing.skip': 'SKIP',
+    'briefing.next': 'NEXT',
+    'briefing.launch': 'LAUNCH EXPLORER',
+    'briefing.close': 'Close briefing',
+    'briefing.step1.tag': '02 / TARGET COMPARATOR',
+    'briefing.step1.title': 'TARGET FIELD SELECTOR',
+    'briefing.step1.desc':
+      'Click any of the 5 curated benchmark targets (WISE 0855-0714 to R Draconis) to load paired observations from historical sky surveys (NEOSSat/WISE) and SPHEREx DR1, updating all astrometric telemetry.',
+    'briefing.step2.tag': '02 / TARGET COMPARATOR',
+    'briefing.step2.title': 'INTERACTIVE SPLIT CURTAIN',
+    'briefing.step2.desc':
+      'Drag the 1px vertical divider across the starfield to compare Epoch A (Archive: NEOSSat/WISE) and Epoch B (Current: SPHEREx) pixel-by-pixel on a locked coordinate grid to spot proper motion or flux changes.',
+    'briefing.step3.tag': '02 / TARGET COMPARATOR',
+    'briefing.step3.title': 'BLINK MODE & SPACEBAR HOTKEY',
+    'briefing.step3.desc':
+      'Toggle BLINK mode or press Spacebar to rapidly alternate frames every 500ms. Stationary background stars remain locked in place, while high-proper-motion targets and Planet X analogues jump out immediately.',
+    'briefing.step4.tag': '02 / TARGET COMPARATOR',
+    'briefing.step4.title': 'VECTOR OVERLAY & TELEMETRY BAR',
+    'briefing.step4.desc':
+      'Activate VECTOR to overlay a dashed astrometric displacement path between epochs. The telemetry bar below reports the temporal baseline, annual proper motion vector, and cumulative angular shift.',
+    'briefing.step5.tag': '03 / SPECTRAL LAB',
+    'briefing.step5.title': 'TARGET & SPECTRUM SELECTOR',
+    'briefing.step5.desc':
+      'Choose an astronomical target or completed /spectrum job to extract calibrated infrared Spectral Energy Distribution (SED) data across all 102 SPHEREx spectral channels.',
+    'briefing.step6.tag': '03 / SPECTRAL LAB',
+    'briefing.step6.title': '6-BAND SPHEREX SPECTROGRAM',
+    'briefing.step6.desc':
+      'Inspect spectral surface brightness across SPHEREx\'s 6 detector wavelength bands covering 0.75 to 5.0 µm. Hover over data points to inspect exact channel wavelength, flux density, and measurement hits.',
+    'briefing.step7.tag': '03 / SPECTRAL LAB',
+    'briefing.step7.title': 'MOLECULAR LINES & CONTINUUM MODELS',
+    'briefing.step7.desc':
+      'Overlay reference molecular absorption bands (CH₄, H₂O, CO₂, CO) and Planck blackbody continuum curves to distinguish cold substellar bodies (Planet X / brown dwarf analogues) from hotter background stars.',
+    'briefing.step8.tag': '03 / SPECTRAL LAB',
+    'briefing.step8.title': 'SCALE & COMPUTATION CONTROLS',
+    'briefing.step8.desc':
+      'Switch between physical coverage detectors and scrub the 102-bin wavelength axis to isolate specific absorption features, analyze Wien peak shifts, or trigger fresh spectral extraction.',
+    'briefing.step9.tag': '04 / LIVE EXPLORER',
+    'briefing.step9.title': 'ICRS COORDINATE POINTING',
+    'briefing.step9.desc':
+      'Enter equatorial sky coordinates in ICRS degrees (Right Ascension 0–360°, Declination ±90°) and specify an angular search radius up to 2° to explore arbitrary regions of the celestial sphere.',
+    'briefing.step10.tag': '04 / LIVE EXPLORER',
+    'briefing.step10.title': 'ARCHIVE SWITCHER & SKY QUERY',
+    'briefing.step10.desc':
+      'Switch between infrared SPHEREx (IRSA) and optical NEOSSat (CADC) data sources, then click SEARCH SKY to query available astronomical observation exposures with MJD timestamps and band coverage.',
+    'briefing.step11.tag': '04 / LIVE EXPLORER',
+    'briefing.step11.title': 'PROCESSING PIPELINE & QUEUE JOB',
+    'briefing.step11.desc':
+      'Select up to 12 observation frames from the timeline, choose an image operation (CUTOUT, STACK, DIFFERENCE, or BLINK), and queue an asynchronous job to generate scientific FITS artifacts.',
+
     // Footer
     'footer.pipelineActive': 'PIPELINE ACTIVE',
     'footer.workspaceReady': 'WORKSPACE READY',
@@ -426,6 +480,60 @@ export const translations: Record<Language, TranslationDictionary> = {
     'explorer.archiveObservations': 'Архивные наблюдения',
     'explorer.observationPipeline': 'Конвейер обработки',
     'explorer.scientificViewport': 'Научная визуализация',
+
+    // Mission Briefing Onboarding Tour
+    'briefing.trigger': 'ИНСТРУКТАЖ',
+    'briefing.triggerAria': 'Открыть обучающий инструктаж',
+    'briefing.guide': 'ИНСТРУКТАЖ',
+    'briefing.prev': 'НАЗАД',
+    'briefing.skip': 'ПРОПУСТИТЬ',
+    'briefing.next': 'ДАЛЕЕ',
+    'briefing.launch': 'ЗАПУСТИТЬ ИССЛЕДОВАТЕЛЬ',
+    'briefing.close': 'Закрыть инструктаж',
+    'briefing.step1.tag': '02 / КОМПАРАТОР ЦЕЛЕЙ',
+    'briefing.step1.title': 'ВЫБОР ОПОРНОЙ ЦЕЛИ',
+    'briefing.step1.desc':
+      'Выберите любой из 5 ключевых объектов каталога (от WISE 0855-0714 до R Дракона) для загрузки синхронизированных парных наблюдений из архивов (NEOSSat/WISE) и SPHEREx DR1.',
+    'briefing.step2.tag': '02 / КОМПАРАТОР ЦЕЛЕЙ',
+    'briefing.step2.title': 'ИНТЕРАКТИВНАЯ ШТОРКА',
+    'briefing.step2.desc':
+      'Перемещайте вертикальную шторку 1px по звездному полю, чтобы попиксельно сравнить эпоху A (архив NEOSSat/WISE) и эпоху B (SPHEREx) на зафиксированной сетке координат и выявить смещение или переменность блеска.',
+    'briefing.step3.tag': '02 / КОМПАРАТОР ЦЕЛЕЙ',
+    'briefing.step3.title': 'РЕЖИМ МИГАНИЯ И ПРОБЕЛ',
+    'briefing.step3.desc':
+      'Включите режим BLINK или нажмите Пробел для быстрого чередования кадров с интервалом 500 мс. Фоновые звезды остаются неподвижными, а объекты с высоким собственным движением отчетливо совершают скачок.',
+    'briefing.step4.tag': '02 / КОМПАРАТОР ЦЕЛЕЙ',
+    'briefing.step4.title': 'ВЕКТОР СМЕЩЕНИЯ И ТЕЛЕМЕТРИЯ',
+    'briefing.step4.desc':
+      'Включите VECTOR для отображения пунктирного вектора астрометрического смещения между эпохами. Нижняя строка телеметрии отображает временную базу, вектор собственного движения и суммарный угловой сдвиг.',
+    'briefing.step5.tag': '03 / СПЕКТРАЛЬНАЯ ЛАБОРАТОРИЯ',
+    'briefing.step5.title': 'ВЫБОР ЦЕЛИ И СПЕКТРА',
+    'briefing.step5.desc':
+      'Выберите целевой объект или завершенную задачу /spectrum для извлечения калиброванного спектрального распределения энергии (SED) по всем 102 каналам SPHEREx.',
+    'briefing.step6.tag': '03 / СПЕКТРАЛЬНАЯ ЛАБОРАТОРИЯ',
+    'briefing.step6.title': '6-ЗОННАЯ СПЕКТРОГРАММА SPHEREx',
+    'briefing.step6.desc':
+      'Исследуйте спектральную яркость по 6 полосам детекторов SPHEREx в диапазоне от 0.75 до 5.0 мкм. Наведите курсор на точки для просмотра точной длины волны канала, плотности потока и отсчетов.',
+    'briefing.step7.tag': '03 / СПЕКТРАЛЬНАЯ ЛАБОРАТОРИЯ',
+    'briefing.step7.title': 'МОЛЕКУЛЯРНЫЕ ЛИНИИ И МОДЕЛИ',
+    'briefing.step7.desc':
+      'Накладывайте эталонные молекулярные полосы поглощения (CH₄, H₂O, CO₂, CO) и планковские кривые абсолютно черного тела, чтобы отличить холодные субзвездные объекты от горячих фоновых звезд.',
+    'briefing.step8.tag': '03 / СПЕКТРАЛЬНАЯ ЛАБОРАТОРИЯ',
+    'briefing.step8.title': 'ДЕТЕКТОРЫ И ШКАЛЫ',
+    'briefing.step8.desc':
+      'Переключайтесь между физическими детекторами и перемещайте ползунок по 102 каналам для изоляции линий поглощения, анализа максимума Вина и запуска новой экстракции спектра.',
+    'briefing.step9.tag': '04 / ЖИВОЙ ИССЛЕДОВАТЕЛЬ',
+    'briefing.step9.title': 'НАВЕДЕНИЕ ПО КООРДИНАТАМ ICRS',
+    'briefing.step9.desc':
+      'Введите экваториальные координаты в градусах ICRS (прямое восхождение 0–360°, склонение ±90°) и укажите радиус поиска до 2° для исследования любой области небесной сферы.',
+    'briefing.step10.tag': '04 / ЖИВОЙ ИССЛЕДОВАТЕЛЬ',
+    'briefing.step10.title': 'ВЫБОР АРХИВА И ПОИСК НАБЛЮДЕНИЙ',
+    'briefing.step10.desc':
+      'Переключайтесь между инфракрасным архивом SPHEREx (IRSA) и оптическим NEOSSat (CADC), затем нажимайте поиск для получения списка кадров с датами MJD и диапазонами длин волн.',
+    'briefing.step11.tag': '04 / ЖИВОЙ ИССЛЕДОВАТЕЛЬ',
+    'briefing.step11.title': 'КОНВЕЙЕР ОБРАБОТКИ И ЗАДАЧИ',
+    'briefing.step11.desc':
+      'Выберите до 12 кадров наблюдений из таблицы, выберите операцию (CUTOUT, STACK, DIFFERENCE или BLINK) и поставьте задачу в очередь обработки для создания научных FITS-артефактов.',
 
     // Footer
     'footer.pipelineActive': 'КОНВЕЙЕР АКТИВЕН',
