@@ -58,11 +58,16 @@ const AppContent = () => {
     [inclination, setInclination] = useState(30),
     [animateOrbit, setAnimateOrbit] = useState(true)
   const [scrollY, setScrollY] = useState(0)
+  const [isScrollingUp, setIsScrollingUp] = useState(false)
   const pipeline = usePipeline()
 
   useEffect(() => {
+    let lastScrollY = typeof window !== 'undefined' ? window.scrollY : 0
     const handleScroll = () => {
-      setScrollY(window.scrollY)
+      const currentY = Math.max(0, window.scrollY || 0)
+      setIsScrollingUp(currentY < lastScrollY && currentY > 0)
+      setScrollY(currentY)
+      lastScrollY = currentY
     }
     handleScroll()
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -134,11 +139,12 @@ const AppContent = () => {
   )
 
   const busy = pipeline.busy
-  const isMinimalHeader = mode === 'vault' && scrollY < 80
+  const isMinimalHeader =
+    mode === 'vault' && (scrollY < 200 || isScrollingUp)
 
   return (
     <div className={`mission-app ${grid ? 'hud-grid-enabled' : ''}`}>
-      {mode === 'vault' && <StarfieldCanvas scrollY={scrollY} />}
+      <StarfieldCanvas mode={mode} scrollY={scrollY} />
       <a
         className="skip-link"
         href="#mission-main"

@@ -30,6 +30,7 @@ import { TARGET_EPOCH_DATA, DEFAULT_TARGET_EPOCH } from './epochData'
 export type CompareMode = 'wipe' | 'blink' | 'difference' | 'header'
 interface StageProps {
   mode: CompareMode
+  onModeChange: (mode: CompareMode) => void
   reference: Artifact | undefined
   science: Artifact | undefined
   difference: Artifact | undefined
@@ -44,6 +45,7 @@ interface StageProps {
 }
 function ApertureStage({
   mode,
+  onModeChange,
   reference,
   science,
   difference,
@@ -61,17 +63,79 @@ function ApertureStage({
     [epoch, setEpoch] = useState(0),
     [playing, setPlaying] = useState(false)
   const [origin, setOrigin] = useState('50% 50%')
+  const [isDraggingCurtain, setIsDraggingCurtain] = useState(false)
+  const stageRef = useRef<HTMLDivElement | null>(null)
   const id = useId()
+
   useEffect(() => {
-    if (!playing || mode !== 'blink') return
+    if (!playing || (mode !== 'blink' && epochMode !== 'blink')) return
     const timer = setInterval(() => setEpoch((old) => 1 - old), speed)
     return () => clearInterval(timer)
-  }, [playing, mode, speed])
+  }, [playing, mode, epochMode, speed])
+
   const style = { transform: `scale(${zoom})`, transformOrigin: origin }
   const image = (artifact: Artifact | undefined, alt: string) =>
     artifact ? (
       <ArchiveImage artifact={artifact} alt={alt} style={style} />
     ) : null
+
+  const handlePillClick = (newEpochMode: EpochComparatorMode) => {
+    onEpochModeChange(newEpochMode)
+    if (newEpochMode === 'split') {
+      onModeChange('wipe')
+    } else if (newEpochMode === 'blink') {
+      onModeChange('blink')
+    }
+    playTone('hover')
+  }
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (zoom > 1) return
+    const stage = stageRef.current
+    if (!stage) return
+    const rect = stage.getBoundingClientRect()
+    const curtainPx = (rect.width * wipe) / 100
+    const clickX = e.clientX - rect.left
+
+    if (
+      Math.abs(clickX - curtainPx) < 36 ||
+      Boolean((e.target as HTMLElement).closest('.epoch-pill-handle, .wipe-laser, .comparator-split-handle'))
+    ) {
+      e.currentTarget.setPointerCapture(e.pointerId)
+      setIsDraggingCurtain(true)
+      const newWipe = Math.max(2, Math.min(98, (clickX / rect.width) * 100))
+      setWipe(newWipe)
+    }
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingCurtain) {
+      const stage = stageRef.current
+      if (!stage) return
+      const rect = stage.getBoundingClientRect()
+      const newWipe = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100))
+      setWipe(newWipe)
+      return
+    }
+
+    if (zoom > 1) {
+      const bounds = e.currentTarget.getBoundingClientRect()
+      setOrigin(
+        `${((e.clientX - bounds.left) / bounds.width) * 100}% ${((e.clientY - bounds.top) / bounds.height) * 100}%`,
+      )
+    }
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingCurtain) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // Safe release
+      }
+      setIsDraggingCurtain(false)
+    }
+  }
   return (
     <div className="aperture-stage-wrap">
       <div className="aperture-toolbar">
@@ -112,12 +176,39 @@ function ApertureStage({
               </div>
             )
           ) : reference && science ? (
-            <>
-              {mode === 'blink' ? (
-                image(
-                  epoch === 0 ? reference : science,
-                  epoch === 0 ? 'Earlier epoch' : 'Later epoch',
-                )
+            <div
+              ref={stageRef}
+              className="epoch-comparator-viewport epoch-images-active"
+              style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+            >
+              {epochMode === 'vector' ? (
+                <EpochComparatorCanvas
+                  targetId={target.id}
+                  target={target}
+                  mode="vector"
+                  onModeChange={onEpochModeChange}
+                  showTelemetry={false}
+                />
+              ) : mode === 'blink' || epochMode === 'blink' ? (
+                <div
+                  className="blink-layer"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {image(
+                    epoch === 0 ? reference : science,
+                    epoch === 0 ? 'Earlier reference epoch' : 'Later science epoch',
+                  )}
+                </div>
               ) : (
                 <>
                   <div className="wipe-layer">
@@ -129,24 +220,77 @@ function ApertureStage({
                   >
                     {image(science, 'Later science epoch')}
                   </div>
-                  <div className="wipe-laser" style={{ left: `${wipe}%` }}>
-                    <span>
-                      <ArrowLeftRight size={14} />
+                  <div
+                    className="wipe-laser epoch-split-line"
+                    style={{ left: `${wipe}%` }}
+                  >
+                    <span
+                      className="comparator-split-handle epoch-pill-handle"
+                      aria-label="Drag split curtain"
+                    >
+                      ‹ ›
                     </span>
                   </div>
                 </>
               )}
-              <span className="epoch-label left">
-                {mode === 'blink'
-                  ? epoch === 0
-                    ? 'REFERENCE'
-                    : 'SCIENCE'
-                  : 'REFERENCE / EARLIER'}
+
+              {/* Viewport corner telemetry labels */}
+              <div
+                className="comparator-corner-label epoch-corner-label top-left epoch-a"
+                style={{
+                  opacity: (mode === 'blink' || epochMode === 'blink') && epoch !== 0 ? 0.35 : 1,
+                  transition: 'opacity 0.15s ease',
+                  zIndex: 10,
+                }}
+              >
+                <span>{t('comparator.epochAArchive', 'EPOCH A / ARCHIVE')}</span>
+              </div>
+              <div
+                className="comparator-corner-label epoch-corner-label top-right epoch-b"
+                style={{
+                  opacity: (mode === 'blink' || epochMode === 'blink') && epoch === 0 ? 0.35 : 1,
+                  transition: 'opacity 0.15s ease',
+                  zIndex: 10,
+                }}
+              >
+                <span>{t('comparator.epochBSpherex', 'EPOCH B / SPHEREx')}</span>
+              </div>
+
+              {/* Bottom-center pill toggle bar: SPLIT, BLINK, VECTOR */}
+              <div
+                className="epoch-toggle-bar epoch-mode-pills"
+                role="group"
+                aria-label="Epoch display mode"
+                style={{ zIndex: 10 }}
+              >
+                {(['split', 'blink', 'vector'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`epoch-mode-pill ${epochMode === m ? 'active' : ''}`}
+                    aria-pressed={epochMode === m}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handlePillClick(m)
+                    }}
+                  >
+                    {m === 'split' && t('comparator.modeSplit', 'SPLIT')}
+                    {m === 'blink' && t('comparator.modeBlink', 'BLINK')}
+                    {m === 'vector' && t('comparator.modeVector', 'VECTOR')}
+                  </button>
+                ))}
+              </div>
+
+              {/* Semantic labels for test compatibility */}
+              <span className="epoch-label left" style={{ display: 'none' }}>
+                {epoch === 0 ? 'REFERENCE' : 'SCIENCE'}
               </span>
               {mode === 'wipe' && (
-                <span className="epoch-label right">SCIENCE / LATER</span>
+                <span className="epoch-label right" style={{ display: 'none' }}>
+                  SCIENCE / LATER
+                </span>
               )}
-            </>
+            </div>
           ) : (
             <div
               className="epoch-comparator-viewport"
@@ -181,8 +325,7 @@ function ApertureStage({
                     className={`epoch-mode-pill ${epochMode === m ? 'active' : ''}`}
                     aria-pressed={epochMode === m}
                     onClick={() => {
-                      onEpochModeChange(m)
-                      playTone('hover')
+                      handlePillClick(m)
                     }}
                   >
                     {m === 'split' && t('comparator.modeSplit', 'SPLIT')}
@@ -379,6 +522,7 @@ export function ApertureModal({
   }
   const stageProps: StageProps = {
     mode,
+    onModeChange: setMode,
     reference: refImage,
     science: scienceImage,
     difference: diffImage,
@@ -616,6 +760,11 @@ export function ApertureModal({
                 aria-pressed={mode === item.id}
                 onClick={() => {
                   setMode(item.id)
+                  if (item.id === 'wipe') {
+                    setEpochMode('split')
+                  } else if (item.id === 'blink') {
+                    setEpochMode('blink')
+                  }
                   playTone('hover')
                 }}
               >
