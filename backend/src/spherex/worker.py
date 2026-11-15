@@ -84,16 +84,17 @@ async def serve(settings: Settings | None = None, provider=None):
     provider = provider or make_provider(settings)
     worker_id = uuid4().hex
     logger.info("Worker started; provider=%s data=%s", settings.provider, store.root)
-    await asyncio.to_thread(store.worker_ping, worker_id, settings.queue_namespace)
 
     async def announce():
         while True:
             await asyncio.sleep(5)
             await asyncio.to_thread(store.worker_ping, worker_id, settings.queue_namespace)
 
-    presence = asyncio.create_task(announce())
+    presence = None
     work = None
     try:
+        await asyncio.to_thread(store.worker_ping, worker_id, settings.queue_namespace)
+        presence = asyncio.create_task(announce())
         while True:
             work = asyncio.create_task(run_once(store, settings, provider))
             done, _ = await asyncio.wait({work, presence}, return_when=asyncio.FIRST_COMPLETED)
@@ -102,12 +103,17 @@ async def serve(settings: Settings | None = None, provider=None):
             if not await work:
                 await asyncio.sleep(1)
     finally:
-        presence.cancel()
+        if presence is not None:
+            presence.cancel()
         if work is not None:
             work.cancel()
-        await asyncio.gather(presence, *([work] if work else []), return_exceptions=True)
+        await asyncio.gather(
+            *([presence] if presence else []),
+            *([work] if work else []),
+            return_exceptions=True,
+        )
         with contextlib.suppress(Exception):
-            await asyncio.to_thread(store.worker_remove, worker_id)
+            store.worker_remove(worker_id)
 
 
 def main():
