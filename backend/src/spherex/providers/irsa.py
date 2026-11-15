@@ -11,11 +11,14 @@ import httpx
 from spherex.config import DETECTOR_BANDS, Settings
 from spherex.errors import ArchiveError
 from spherex.models import JobRequest, Observation, SearchResult, SkySearch
+from spherex.providers.http import ATTEMPTS, archive_failure, retry_delay
 
 SIA_URL = "https://irsa.ipac.caltech.edu/SIA"
 
 
 def validate_data_url(url: str) -> str:
+    if not isinstance(url, str) or not url:
+        raise ArchiveError("Archive returned a missing data URL")
     parts = urlsplit(url)
     decoded = unquote(parts.path)
     if (
@@ -42,7 +45,7 @@ def number(value: str | None) -> float | None:
 
 def parse_csv(body: bytes, query: SkySearch, collections: list[str]) -> SearchResult:
     try:
-        reader = csv.DictReader(io.StringIO(body.decode("utf-8-sig")))
+        reader = csv.DictReader(io.StringIO(body.decode("utf-8-sig")), strict=True)
         if not {"access_url", "obs_id"}.issubset(reader.fieldnames or []):
             raise ArchiveError("Archive did not return the expected SIA CSV columns")
         observations = []
@@ -50,6 +53,8 @@ def parse_csv(body: bytes, query: SkySearch, collections: list[str]) -> SearchRe
         row_count = 0
         for row in reader:
             row_count += 1
+            if None in row or not row.get("obs_id"):
+                raise ArchiveError("Invalid SIA row: missing observation ID or excess columns")
             url = validate_data_url(row.get("access_url", ""))
             identifier = hashlib.sha256(url.encode()).hexdigest()[:24]
             if identifier in seen:
@@ -104,8 +109,8 @@ class IRSAProvider:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    async def _get(self, url: str, params, limit: int) -> bytes:
-        for attempt in range(2):
+    async def _get(self, url: str, params, limit: int, operation="search") -> bytes:
+        for attempt in range(ATTEMPTS):
             try:
                 async with httpx.AsyncClient(
                     timeout=self.settings.http_timeout_seconds,
@@ -123,16 +128,11 @@ class IRSAProvider:
                                 raise ArchiveError("Archive response exceeds configured size limit")
                         return bytes(content)
             except httpx.HTTPError as exc:
-                transient = isinstance(exc, (httpx.TransportError,)) or (
-                    isinstance(exc, httpx.HTTPStatusError)
-                    and exc.response.status_code in (429, 502, 503, 504)
-                )
-                if attempt == 0 and transient:
-                    await asyncio.sleep(0.5)
+                delay = retry_delay(exc, attempt)
+                if attempt < ATTEMPTS - 1 and delay is not None:
+                    await asyncio.sleep(delay)
                     continue
-                raise ArchiveError(
-                    "IRSA is unavailable or rejected the request; try again later"
-                ) from exc
+                raise archive_failure(exc, operation) from exc
         raise ArchiveError("IRSA request failed")
 
     async def search(self, query: SkySearch) -> SearchResult:
@@ -174,4 +174,5 @@ class IRSAProvider:
             url,
             {"center": f"{request.ra},{request.dec}d", "size": str(request.fov_deg)},
             self.settings.max_download_bytes,
+            operation=f"cutout {observation.obs_id}",
         )

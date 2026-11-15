@@ -12,6 +12,7 @@ from astropy_healpix import HEALPix
 
 from spherex.config import Settings
 from spherex.errors import ArchiveError
+from spherex.providers.http import ATTEMPTS, archive_failure, retry_delay
 from spherex.providers.irsa import validate_data_url
 
 CUBE_RELEASE = "hips_20261026"
@@ -43,8 +44,10 @@ class CubeReader:
         self.semaphore = asyncio.Semaphore(6)
 
     async def read(self, start: int, length: int) -> bytes:
-        if length <= 0 or length > 65536:
+        if start < 0 or length <= 0 or length > 65536:
             raise ArchiveError("Invalid cube byte range")
+        if self.total is not None and start >= self.total:
+            raise ArchiveError("Cube byte range starts beyond end of file")
         end = start + length - 1
         if self.total is not None:
             end = min(end, self.total - 1)
@@ -54,7 +57,7 @@ class CubeReader:
         elif self.modified:
             headers["If-Unmodified-Since"] = self.modified
         async with self.semaphore:
-            for attempt in range(2):
+            for attempt in range(ATTEMPTS):
                 try:
                     async with self.client.stream("GET", self.url, headers=headers) as response:
                         response.raise_for_status()
@@ -67,7 +70,9 @@ class CubeReader:
                             )
                         lo, hi, total = map(int, match.groups())
                         if (
-                            lo != start
+                            total <= hi
+                            or lo > hi
+                            or lo != start
                             or hi != end
                             or total > self.settings.max_cube_download_bytes
                         ):
@@ -76,6 +81,10 @@ class CubeReader:
                             raise ArchiveError("Cube changed while extracting spectrum")
                         if self.etag and response.headers.get("ETag") != self.etag:
                             raise ArchiveError("Cube version changed while extracting spectrum")
+                        if self.modified and response.headers.get("Last-Modified") != self.modified:
+                            raise ArchiveError(
+                                "Cube modification time changed while extracting spectrum"
+                            )
                         self.total = total
                         self.etag = response.headers.get("ETag")
                         self.modified = response.headers.get("Last-Modified")
@@ -89,13 +98,11 @@ class CubeReader:
                         self.bytes_received += len(body)
                         return bytes(body)
                 except httpx.HTTPError as exc:
-                    transient = not isinstance(
-                        exc, httpx.HTTPStatusError
-                    ) or exc.response.status_code in (429, 502, 503, 504)
-                    if not attempt and transient:
-                        await asyncio.sleep(0.5)
+                    delay = retry_delay(exc, attempt)
+                    if attempt < ATTEMPTS - 1 and delay is not None:
+                        await asyncio.sleep(delay)
                         continue
-                    raise ArchiveError("IRSA cube range unavailable; retry later") from exc
+                    raise archive_failure(exc, "DR1 cube extraction") from exc
         raise ArchiveError("Cube request failed")
 
     async def prepare(self, destination: Path):

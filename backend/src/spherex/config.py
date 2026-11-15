@@ -1,8 +1,11 @@
+import json
 from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from spherex import __version__
 
 DETECTOR_BANDS = [
     (0.75, 1.09),
@@ -35,4 +38,11 @@ class Settings(BaseSettings):
     max_download_bytes: int = Field(64 * 1024 * 1024, ge=1024)
     max_cube_download_bytes: int = Field(384 * 1024 * 1024, ge=1024)
     max_pending_jobs: int = Field(100, ge=1)
-    lease_seconds: int = Field(1800, ge=60)
+    lease_seconds: int = Field(120, ge=60)
+
+    job_timeout_seconds: float = Field(600, gt=0, le=3600)
+    job_cache_ttl_seconds: int = Field(900, ge=0, le=86400)
+
+    @property
+    def queue_namespace(self) -> str:
+        return json.dumps([__version__, self.provider, self.collections], sort_keys=True)

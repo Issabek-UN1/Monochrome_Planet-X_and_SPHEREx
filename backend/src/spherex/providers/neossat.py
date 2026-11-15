@@ -1,5 +1,6 @@
 """Public CADC ObsTAP and DataLink adapter; no CSA notebook code is copied."""
 
+import asyncio
 import csv
 import hashlib
 import io
@@ -12,6 +13,7 @@ from astropy.io.votable import parse_single_table
 from spherex.config import Settings
 from spherex.errors import ArchiveError
 from spherex.models import JobRequest, Observation, SearchResult, SkySearch
+from spherex.providers.http import ATTEMPTS, archive_failure, retry_delay
 from spherex.providers.irsa import number
 
 HOST = "ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca"
@@ -47,29 +49,43 @@ class NEOSSatProvider:
     async def _get(self, url: str, params=None, limit: int | None = None) -> bytes:
         validate_url(url)
         limit = limit or self.settings.max_download_bytes
-        try:
-            async with httpx.AsyncClient(
-                timeout=self.settings.http_timeout_seconds, follow_redirects=False
-            ) as client:
-                for _hop in range(4):
-                    async with client.stream("GET", url, params=params) as response:
-                        if response.is_redirect:
-                            url = validate_url(
-                                urljoin(str(response.url), response.headers["location"]),
-                                redirect=True,
-                            )
-                            params = None
-                            continue
-                        response.raise_for_status()
-                        data = bytearray()
-                        async for chunk in response.aiter_bytes():
-                            data.extend(chunk)
-                            if len(data) > limit:
-                                raise ArchiveError("CADC response exceeds configured size limit")
-                        return bytes(data)
-                raise ArchiveError("Too many CADC redirects")
-        except httpx.HTTPError as exc:
-            raise ArchiveError("CADC unavailable or access denied; retry later") from exc
+        for attempt in range(ATTEMPTS):
+            current_url, current_params = url, params
+            try:
+                async with httpx.AsyncClient(
+                    timeout=self.settings.http_timeout_seconds, follow_redirects=False
+                ) as client:
+                    for _hop in range(4):
+                        async with client.stream(
+                            "GET", current_url, params=current_params
+                        ) as response:
+                            if response.is_redirect:
+                                location = response.headers.get("location")
+                                if not location:
+                                    raise ArchiveError("CADC redirect has no destination")
+                                current_url = validate_url(
+                                    urljoin(str(response.url), location),
+                                    redirect=True,
+                                )
+                                current_params = None
+                                continue
+                            response.raise_for_status()
+                            data = bytearray()
+                            async for chunk in response.aiter_bytes():
+                                data.extend(chunk)
+                                if len(data) > limit:
+                                    raise ArchiveError(
+                                        "CADC response exceeds configured size limit"
+                                    )
+                            return bytes(data)
+                    raise ArchiveError("Too many CADC redirects")
+            except httpx.HTTPError as exc:
+                delay = retry_delay(exc, attempt)
+                if attempt < ATTEMPTS - 1 and delay is not None:
+                    await asyncio.sleep(delay)
+                    continue
+                raise archive_failure(exc, "request", archive="CADC") from exc
+        raise ArchiveError("CADC request failed")
 
     async def search(self, query: SkySearch) -> SearchResult:
         # All interpolated fields are Pydantic-validated finite numbers, never user ADQL.
@@ -93,12 +109,14 @@ class NEOSSatProvider:
             limit=8 * 1024 * 1024,
         )
         try:
-            reader = csv.DictReader(io.StringIO(body.decode("utf-8-sig")))
+            reader = csv.DictReader(io.StringIO(body.decode("utf-8-sig")), strict=True)
             if not {"obs_id", "access_url", "obs_publisher_did"}.issubset(reader.fieldnames or []):
                 raise ArchiveError("Invalid CADC ObsCore response")
             observations = {}
             for row in reader:
-                did = row["obs_publisher_did"]
+                if None in row:
+                    raise ArchiveError("Invalid CADC ObsCore row: excess columns")
+                did = row.get("obs_publisher_did") or ""
                 if not re.fullmatch(r"ivo://cadc\.nrc\.ca/NEOSSAT\?\d+/(?:cor|cord)", did):
                     continue
                 identifier = hashlib.sha256(did.encode()).hexdigest()[:24]

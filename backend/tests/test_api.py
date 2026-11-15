@@ -125,7 +125,7 @@ def test_queue_capacity(client, settings, observations):
     settings.max_pending_jobs = 1
     request = {"kind": "cutout", "observation_ids": [observations[0]["id"]], "ra": 10, "dec": 20}
     assert client.post("/api/v1/jobs", json=request).status_code == 202
-    result = client.post("/api/v1/jobs", json=request)
+    result = client.post("/api/v1/jobs", json={**request, "ra": 11})
     assert result.status_code == 429
     assert result.headers["Retry-After"] == "30"
 

@@ -174,3 +174,21 @@ Comparator учитывает пару, направление разности 
 Ссылки FITS поддерживают CORS с заголовком Range при отдельном адресе API.
 После 30 секунд в queued интерфейс напоминает проверить worker; задача не объявляется
 успешной по таймеру. В футере присутствуют acknowledgement и ссылка на SPHEREx/IRSA.
+
+
+## Совместимость после исправлений бэкенда Demotest1(11)
+
+Файлы интерфейса и форматы SkySearch/JobRequest/Job/SpectrumResult не менялись.
+POST /api/v1/jobs по-прежнему отвечает 202; одинаковый запрос может вернуть
+существующий ID активной задачи или готового результата из кратковременного кеша.
+Не следует считать каждый POST обязательно новой задачей. Статусы задач прежние:
+queued/running/succeeded/failed.
+
+HTTP 502 сохраняет стандартную оболочку error. Поле code уточняет причину:
+archive_rate_limited, archive_timeout, archive_not_found, archive_rejected,
+archive_denied, archive_connection_error, archive_http_error или archive_error.
+Retry-After передаётся, если архив указал срок ожидания. Текст error.message
+и ошибки задачи содержит контекст и может показываться существующим интерфейсом.
+
+/health/ready теперь возвращает 503 без работающего worker с той же конфигурацией.
+Это не проверка доступности IRSA. /health/live остаётся независимой проверкой API.

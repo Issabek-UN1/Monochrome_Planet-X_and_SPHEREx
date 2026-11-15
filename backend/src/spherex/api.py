@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -106,22 +107,35 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
 
     @app.exception_handler(ArchiveError)
     async def archive_error(request, exc):
-        return error(request, 502, "archive_error", str(exc))
+        return error(
+            request,
+            502,
+            exc.code,
+            str(exc),
+            headers={"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None,
+        )
 
     @app.get("/health/live", tags=["health"])
     def live() -> dict:
         return {"status": "ok", "version": __version__}
 
-    @app.get("/health/ready", tags=["health"])
+    @app.get(
+        "/health/ready", tags=["health"], responses={503: {"description": "Worker unavailable"}}
+    )
     def ready(request: Request) -> dict:
-        with request.app.state.store.connection() as db:
+        store = request.app.state.store
+        with store.connection() as db:
             db.execute("SELECT 1")
-        return {
-            "status": "ok",
-            "provider": settings.provider,
-            "checks": {"database": "ok"},
-            "note": "Does not check archive reachability or worker availability",
-        }
+        available = store.worker_available(settings.queue_namespace)
+        return JSONResponse(
+            status_code=200 if available else 503,
+            content={
+                "status": "ok" if available else "degraded",
+                "provider": settings.provider,
+                "checks": {"database": "ok", "worker": "ok" if available else "unavailable"},
+                "note": "Archive reachability is checked by actual search/download requests",
+            },
+        )
 
     @app.get("/api/v1/capabilities", response_model=Capabilities, tags=["configuration"])
     def capabilities() -> dict:
@@ -170,7 +184,7 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
             ).encode()
         ).hexdigest()
         store = request.app.state.store
-        cached = store.cached_search(key)
+        cached = await asyncio.to_thread(store.cached_search, key)
         if cached is not None:
             return cached
         selected = (
@@ -180,7 +194,7 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
             result = await selected.search(query)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
-        store.save_search(key, result, settings.search_ttl_seconds)
+        await asyncio.to_thread(store.save_search, key, result, settings.search_ttl_seconds)
         return result
 
     @app.get(
@@ -206,7 +220,12 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         try:
-            job = store.enqueue(body, settings.max_pending_jobs)
+            job = store.enqueue(
+                body,
+                settings.max_pending_jobs,
+                namespace=settings.queue_namespace,
+                cache_ttl=settings.job_cache_ttl_seconds,
+            )
         except QueueFull as exc:
             raise HTTPException(
                 429, "Processing queue is full; try again later", headers={"Retry-After": "30"}

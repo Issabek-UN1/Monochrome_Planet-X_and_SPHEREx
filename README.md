@@ -185,7 +185,7 @@ SPHEREx использует 102 спектральных канала и шес
 
 ## Рабочая ветка и проверка Demotest1
 
-В этой папке работаем в ветке `IDKWht2do2`; изменения в `main`, `Frontfixver`, `Demotest1` и `Demotest1NonFix` не отправляются.
+В этой папке работаем в ветке `Demotest1`; изменения в `main`, `Frontfixver`, `IDKWht2do2` и `Demotest1NonFix` не отправляются.
 В PowerShell нестандартные порты задаются переменными `$env:PORT` и `$env:FRONTEND_PORT`.
 Все способы запуска используют `scripts/run_dashboard.py`: API, worker и Vite проверяются
 на готовность; ошибка запуска или Ctrl+C останавливает дочерние сервисы. Занятые порты
