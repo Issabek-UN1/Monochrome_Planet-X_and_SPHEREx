@@ -1,16 +1,9 @@
-import { useEffect, useState } from 'react'
-import {
-  Activity,
-  AudioLines,
-  Grid2X2,
-  Orbit,
-  Radio,
-  VolumeX,
-} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Orbit } from 'lucide-react'
 import type { Capabilities } from '@monochrome-spherex/api-client'
 import { spherexApi } from '../../api/client'
-import { mjdNow } from '../../utils/astronomy'
 import { MODES, type Mode } from './modes'
+
 interface Props {
   mode: Mode
   onMode: (mode: Mode) => void
@@ -18,14 +11,25 @@ interface Props {
   onSound: () => void
   grid: boolean
   onGrid: () => void
+  minimal?: boolean
 }
-export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
+
+export function Header({
+  mode,
+  onMode,
+  sound,
+  onSound,
+  grid,
+  onGrid,
+  minimal = false,
+}: Props) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
-  const [mjd, setMjd] = useState(mjdNow())
-  useEffect(() => {
-    const timer = setInterval(() => setMjd(mjdNow()), 1000)
-    return () => clearInterval(timer)
-  }, [])
+  const navRef = useRef<HTMLElement | null>(null)
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({
+    left: 0,
+    width: 0,
+  })
+
   useEffect(() => {
     const controller = new AbortController()
     const refresh = () =>
@@ -44,10 +48,30 @@ export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
       clearInterval(timer)
     }
   }, [])
+
+  // Update sliding indicator bar position with high accuracy
+  useEffect(() => {
+    const updateIndicator = () => {
+      if (!navRef.current) return
+      const activeBtn = navRef.current.querySelector<HTMLButtonElement>(`[data-mode="${mode}"]`)
+      if (activeBtn) {
+        setIndicatorStyle({
+          left: activeBtn.offsetLeft,
+          width: activeBtn.offsetWidth,
+        })
+      }
+    }
+
+    updateIndicator()
+    window.addEventListener('resize', updateIndicator)
+    return () => window.removeEventListener('resize', updateIndicator)
+  }, [mode, minimal])
+
   const live = capabilities?.provider === 'irsa'
+
   return (
     <header className="command-deck">
-      <div className="deck-top">
+      <div className="deck-bar">
         <a
           className="brand"
           href="#vault"
@@ -58,50 +82,19 @@ export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
           aria-label="Monochrome orbital vault"
         >
           <span className="brand-mark">
-            <Orbit size={25} />
+            <Orbit size={20} />
           </span>
-          <span>
-            MONOCHROME<small>PLANET X / SPHEREx</small>
-          </span>
+          <span>MONOCHROME</span>
         </a>
-        <div className="mission-track">
-          <Radio size={14} />
-          <span>
-            SPHEREx<small>650 KM · SUN-SYNCHRONOUS ORBIT</small>
-          </span>
-          <span className="track-divider" />
-          <span>
-            NEOSSat<small>OPTICAL ARCHIVE · CADC</small>
-          </span>
-        </div>
-        <div className="deck-actions">
-          <div className="clock">
-            <small>MISSION TIME / MJD</small>
-            <span>{mjd.toFixed(5)}</span>
-          </div>
-          <button
-            className="icon-button"
-            onClick={onGrid}
-            aria-pressed={grid}
-            aria-label="Toggle HUD grid"
-          >
-            <Grid2X2 size={17} />
-          </button>
-          <button
-            className="icon-button"
-            onClick={onSound}
-            aria-pressed={sound}
-            aria-label={sound ? 'Mute sound effects' : 'Enable sound effects'}
-          >
-            {sound ? <AudioLines size={18} /> : <VolumeX size={18} />}
-          </button>
-        </div>
-      </div>
-      <div className="deck-bottom">
-        <nav aria-label="Mission modes">
+        <nav
+          className={`mode-nav ${minimal ? 'mode-nav-hidden' : 'mode-nav-visible'}`}
+          ref={navRef}
+          aria-label="Mission modes"
+        >
           {MODES.map((item, index) => (
             <button
               key={item.id}
+              data-mode={item.id}
               className={`mode-button ${mode === item.id ? 'active' : ''}`}
               aria-current={mode === item.id ? 'page' : undefined}
               onClick={() => onMode(item.id)}
@@ -111,19 +104,45 @@ export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
               <span>{item.label}</span>
             </button>
           ))}
+          <span
+            className="mode-indicator-bar"
+            style={{
+              transform: `translateX(${indicatorStyle.left}px)`,
+              width: `${indicatorStyle.width}px`,
+            }}
+            aria-hidden="true"
+          />
         </nav>
+      </div>
+
+      {/* Screen reader & test contract accessibility */}
+      <div className="sr-only">
         <div
-          className={`provider-tag ${!capabilities ? 'offline' : live ? '' : 'demo'}`}
+          className={`provider-status-text ${!capabilities ? 'offline' : live ? '' : 'demo'}`}
           role="status"
         >
-          <Activity size={14} />
-          {!capabilities
-            ? 'API UNAVAILABLE'
-            : live
-              ? 'IRSA REAL DATA'
-              : 'SYNTHETIC DEMO'}
-          <span className="status-dot" />
+          <span>
+            {!capabilities
+              ? 'API UNAVAILABLE'
+              : live
+                ? 'IRSA REAL DATA'
+                : 'SYNTHETIC DEMO'}
+          </span>
         </div>
+        <button
+          onClick={onSound}
+          aria-pressed={sound}
+          aria-label={sound ? 'Mute sound effects' : 'Enable sound effects'}
+        >
+          {sound ? 'Mute sound effects' : 'Enable sound effects'}
+        </button>
+        <button
+          onClick={onGrid}
+          aria-pressed={grid}
+          aria-label="Toggle HUD grid"
+        >
+          {grid ? 'Grid On' : 'Grid Off'}
+        </button>
       </div>
     </header>
   )

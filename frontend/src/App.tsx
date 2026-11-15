@@ -1,20 +1,15 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import {
-  ArrowDownRight,
-  ArrowRight,
-  Crosshair,
-  ExternalLink,
-  Orbit,
-} from 'lucide-react'
+import { Orbit } from 'lucide-react'
 import { Header } from './components/layout/Header'
 import { MODES, type Mode } from './components/layout/modes'
 import { TargetCarousel } from './components/carousel/TargetCarousel'
 import { SkyExplorer } from './components/explorer/SkyExplorer'
 import { CURATED_TARGETS, type EnhancedTarget } from './api/client'
 import { usePipeline } from './hooks/usePipeline'
-import { formatDec, formatRA } from './utils/astronomy'
 import { playTone, setAudioEnabled } from './utils/audio'
-import { useTextScramble } from './hooks/useTextScramble'
+import { StarfieldCanvas } from './components/3d/StarfieldCanvas'
+import { VaultDirectory } from './components/vault/VaultDirectory'
+
 import type { SkySearch } from '@monochrome-spherex/api-client'
 const CelestialSphereCanvas = lazy(() =>
   import('./components/3d/CelestialSphereCanvas').then((module) => ({
@@ -31,6 +26,7 @@ const ApertureModal = lazy(() =>
     default: module.ApertureModal,
   })),
 )
+
 function route() {
   const url = new URL(window.location.href),
     ra = Number(url.searchParams.get('ra')),
@@ -79,6 +75,7 @@ function route() {
     detector: source === 'spherex' && band ? Number(band[1]) : null,
   }
 }
+
 export const App = () => {
   const [initial] = useState(route),
     [mode, setMode] = useState<Mode>(initial.mode),
@@ -91,8 +88,18 @@ export const App = () => {
     [semiMajor, setSemiMajor] = useState(600),
     [inclination, setInclination] = useState(30),
     [animateOrbit, setAnimateOrbit] = useState(true)
+  const [scrollY, setScrollY] = useState(0)
   const pipeline = usePipeline()
-  const decodedName = useTextScramble(target.name, 320)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY)
+    }
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   function updateRoute(
     nextMode: Mode,
     nextTarget = target,
@@ -143,11 +150,28 @@ export const App = () => {
     setDetector(query.detector ?? null)
     updateRoute(mode, next, query.source, query.detector ?? null, !preset)
   }
+
   function selectMode(next: Mode) {
     playTone('hover')
+    if (next === 'vault' && mode === 'vault') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     setMode(next)
     updateRoute(next)
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
+
+  function scrollToSection2() {
+    playTone('select')
+    const dir = document.getElementById('vault-directory-section')
+    if (dir) {
+      dir.scrollIntoView({ behavior: 'smooth' })
+    } else {
+      window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })
+    }
+  }
+
   function selectTarget(next: EnhancedTarget) {
     if (next.id !== target.id) {
       pipeline.reset()
@@ -156,6 +180,7 @@ export const App = () => {
       updateRoute(mode, next)
     }
   }
+
   const resetPipeline = pipeline.reset
   useEffect(() => {
     const back = () => {
@@ -183,7 +208,10 @@ export const App = () => {
     },
     [],
   )
+
   const busy = pipeline.busy
+  const isMinimalHeader = mode === 'vault' && scrollY < 80
+
   return (
     <div className={`mission-app ${grid ? 'hud-grid-enabled' : ''}`}>
       <a
@@ -204,6 +232,7 @@ export const App = () => {
         onSound={() => setSound(setAudioEnabled(!sound))}
         grid={grid}
         onGrid={() => setGrid((old) => !old)}
+        minimal={isMinimalHeader}
       />
       <main
         id="mission-main"
@@ -219,181 +248,83 @@ export const App = () => {
           }
         >
           {mode === 'vault' && (
-            <div className="vault-mode mode-content">
-              <div className="vault-layout">
-                <section className="vault-narrative">
-                  <div className="eyebrow">
-                    <span className="status-dot" />
-                    TIME-DOMAIN SKY EXPLORER
-                  </div>
-                  <h1>
-                    The sky
-                    <br />
-                    doesn't
-                    <br />
-                    <em>stand still.</em>
-                  </h1>
-                  <p className="hero-description">
-                    A universe in motion.
-                    <br />
-                    Find the signal between the moments.
-                  </p>
-                  <button
-                    className="button-primary hero-cta"
-                    onClick={() => selectMode('explorer')}
-                  >
-                    ACQUIRE REAL OBSERVATIONS
-                    <ArrowRight size={17} />
-                  </button>
-                  <div className="mission-summary">
-                    <div>
-                      <strong>102</strong>
-                      <span>
-                        SPECTRAL CHANNELS
-                        <br />
-                        MISSION DESIGN
-                      </span>
+            <div className="vault-mode mode-content" key="vault">
+              <StarfieldCanvas scrollY={scrollY} />
+              {/* SECTION 1: HERO VIEWPORT (100vh) */}
+              <section className="vault-hero-section" aria-label="Mission hero">
+                <div className="vault-layout">
+                  <section className="vault-narrative">
+                    <div className="eyebrow hero-stagger hero-stagger-1">
+                      <span className="status-dot" />
+                      TIME-DOMAIN SKY EXPLORER
                     </div>
-                    <div>
-                      <strong>06</strong>
-                      <span>
-                        DETECTOR ARRAYS
-                        <br />
-                        0.75–5.00 µm
-                      </span>
-                    </div>
-                  </div>
-                  <div className="narrative-foot">
-                    <span className="tiny-cross">+</span>
-                    <p>
-                      REAL ARCHIVE ACCESS.
+                    <h1 className="hero-stagger hero-stagger-2">
+                      The sky
                       <br />
-                      HUMAN CURIOSITY.
+                      doesn't
+                      <br />
+                      <em>stand still.</em>
+                    </h1>
+                    <p className="hero-description hero-stagger hero-stagger-3">
+                      A universe in motion.
+                      <br />
+                      Find the signal between the moments.
                     </p>
-                    <ArrowDownRight size={23} />
-                  </div>
-                </section>
-                <section className="vault-window" aria-label="Celestial vault">
-                  <CelestialSphereCanvas
-                    target={target}
-                    onSelect={selectTarget}
-                    semiMajor={semiMajor}
-                    inclination={inclination}
-                    animated={animateOrbit}
-                  />
-                  <div
-                    className="viewport-axis horizontal"
-                    aria-hidden="true"
-                  />
-                  <div className="viewport-axis vertical" aria-hidden="true" />
-                </section>
-                <aside className="vault-side">
-                  <div className="hud-panel acquisition-card">
-                    <div className="panel-heading">
-                      <h2>
-                        <span>01</span>Target acquisition
-                      </h2>
-                      <Crosshair size={15} />
-                    </div>
-                    <span className="eyebrow">REFERENCE FIELD / ICRS</span>
-                    <h2 className="decoded-name" aria-label={target.name}>
-                      {decodedName}
-                    </h2>
-                    <span className="target-type">{target.category}</span>
-                    <dl>
-                      <div>
-                        <dt>RIGHT ASCENSION</dt>
-                        <dd>{formatRA(target.ra)}</dd>
-                      </div>
-                      <div>
-                        <dt>DECLINATION</dt>
-                        <dd>{formatDec(target.dec)}</dd>
-                      </div>
-                      <div>
-                        <dt>REFERENCE CENTRE</dt>
-                        <dd>
-                          {target.ra.toFixed(5)} / {target.dec.toFixed(5)}
-                        </dd>
-                      </div>
-                    </dl>
                     <button
-                      className="button-quiet full-width"
-                      onClick={() => selectMode('comparator')}
+                      className="hero-cta-capsule hero-stagger hero-stagger-4"
+                      onClick={scrollToSection2}
+                      aria-label="Explore archive: scroll to instrument directory"
                     >
-                      OPEN DIAGNOSTICS
-                      <ArrowRight size={14} />
+                      EXPLORE ARCHIVE -&gt;
                     </button>
-                  </div>
-                  <div className="hud-panel orbit-controls">
-                    <div className="panel-heading">
-                      <h2>
-                        <span>02</span>Planet X hypothesis
-                      </h2>
-                      <Orbit size={15} />
-                    </div>
-                    <label htmlFor="orbit-a">
-                      SEMI-MAJOR AXIS<output>{semiMajor} AU</output>
-                      <input
-                        id="orbit-a"
-                        type="range"
-                        min="400"
-                        max="800"
-                        step="10"
-                        value={semiMajor}
-                        onChange={(event) =>
-                          setSemiMajor(Number(event.target.value))
-                        }
-                      />
-                    </label>
-                    <label htmlFor="orbit-i">
-                      INCLINATION<output>{inclination}°</output>
-                      <input
-                        id="orbit-i"
-                        type="range"
-                        min="0"
-                        max="60"
-                        value={inclination}
-                        onChange={(event) =>
-                          setInclination(Number(event.target.value))
-                        }
-                      />
-                    </label>
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={animateOrbit}
-                        onChange={(event) =>
-                          setAnimateOrbit(event.target.checked)
-                        }
-                      />
-                      ANIMATE ILLUSTRATIVE FLOW
-                    </label>
-                    <p>
-                      Illustrative eccentric orbit · e = 0.65.
-                      <br />
-                      Not a fitted orbit or a predicted sky position. Flow is
-                      illustrative, not orbital timing.
+                    <p className="panel-footnote">
+                      Illustrative spacetime view. Open Live Explorer for archive images.
                     </p>
-                  </div>
-                  <a
-                    className="archive-link"
-                    href="https://irsa.ipac.caltech.edu/Missions/spherex.html"
-                    target="_blank"
-                    rel="noreferrer"
+                  </section>
+                  <section
+                    className="vault-window"
+                    aria-label="Celestial vault"
+                    style={{
+                      transform: `translateY(-${Math.min(50, scrollY * 0.1)}px)`,
+                      opacity: Math.max(
+                        0,
+                        1 -
+                          scrollY /
+                            (typeof window !== 'undefined'
+                              ? Math.max(window.innerHeight * 0.65, 300)
+                              : 500),
+                      ),
+                      transition:
+                        'opacity 0.1s ease-out, transform 0.1s ease-out',
+                    }}
                   >
-                    <span>
-                      MISSION RESOURCES
-                      <small>NASA / IPAC INFRARED SCIENCE ARCHIVE</small>
-                    </span>
-                    <ExternalLink size={15} />
-                  </a>
-                </aside>
-              </div>
-              <TargetCarousel target={target} onSelect={selectTarget} />
+                    <CelestialSphereCanvas
+                      target={target}
+                      onSelect={selectTarget}
+                      semiMajor={semiMajor}
+                      inclination={inclination}
+                      animated={animateOrbit}
+                    />
+                  </section>
+                </div>
+              </section>
+
+              {/* SECTION 2: DEEP STARFIELD & VERTICAL TAB DIRECTORY (100vh) */}
+              <section
+                id="vault-directory-section"
+                className="vault-directory-section"
+                aria-label="Deep starfield and vertical directory"
+              >
+                <div className="vault-directory-inner">
+                  <VaultDirectory
+                    onSelectMode={selectMode}
+                  />
+                </div>
+              </section>
             </div>
           )}
           {mode === 'comparator' && (
-            <>
+            <div className="mode-content" key="comparator">
               <div className="compact-catalog">
                 <TargetCarousel target={target} onSelect={selectTarget} />
               </div>
@@ -407,11 +338,22 @@ export const App = () => {
                     return pipeline.load(query)
                   },
                 }}
+                semiMajor={semiMajor}
+                onSemiMajor={setSemiMajor}
+                inclination={inclination}
+                onInclination={setInclination}
+                animateOrbit={animateOrbit}
+                onAnimateOrbit={setAnimateOrbit}
               />
-            </>
+            </div>
           )}
-          {mode === 'spectral' && <SpectralLab initialTarget={target} />}
+          {mode === 'spectral' && (
+            <div className="mode-content" key="spectral">
+              <SpectralLab initialTarget={target} />
+            </div>
+          )}
           {mode === 'explorer' && (
+            <div className="mode-content" key="explorer">
             <SkyExplorer
               initialTarget={target}
               pipeline={pipeline}
@@ -427,6 +369,7 @@ export const App = () => {
               }}
               onPointing={pointAt}
             />
+            </div>
           )}
         </Suspense>
       </main>

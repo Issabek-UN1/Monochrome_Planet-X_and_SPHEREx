@@ -14,6 +14,10 @@ export function Panel({
 }) {
   return (
     <section className={`hud-panel ${className}`}>
+      <span className="panel-corner corner-tl" aria-hidden="true">+</span>
+      <span className="panel-corner corner-tr" aria-hidden="true">+</span>
+      <span className="panel-corner corner-bl" aria-hidden="true">+</span>
+      <span className="panel-corner corner-br" aria-hidden="true">+</span>
       <div className="panel-heading">
         <h2>
           <span>{number}</span>

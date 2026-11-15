@@ -201,8 +201,23 @@ function ApertureStage({
 interface Props {
   target: EnhancedTarget
   pipeline: Pipeline
+  semiMajor?: number
+  onSemiMajor?: (value: number) => void
+  inclination?: number
+  onInclination?: (value: number) => void
+  animateOrbit?: boolean
+  onAnimateOrbit?: (value: boolean) => void
 }
-export function ApertureModal({ target, pipeline: p }: Props) {
+export function ApertureModal({
+  target,
+  pipeline: p,
+  semiMajor = 600,
+  onSemiMajor,
+  inclination = 30,
+  onInclination,
+  animateOrbit = true,
+  onAnimateOrbit,
+}: Props) {
   const [mode, setMode] = useState<CompareMode>('wipe'),
     [speed, setSpeed] = useState(500),
     [zoom, setZoom] = useState(1)
@@ -461,6 +476,51 @@ export function ApertureModal({ target, pipeline: p }: Props) {
                 <Minus size={15} />
                 CREATE SCIENCE − REFERENCE
               </button>
+            </div>
+          </Panel>
+          <Panel number="03" title="Planet X hypothesis">
+            <div className="orbit-controls">
+              <label htmlFor="comparator-orbit-a">
+                SEMI-MAJOR AXIS<output>{semiMajor} AU</output>
+                <input
+                  id="comparator-orbit-a"
+                  type="range"
+                  min="400"
+                  max="800"
+                  step="10"
+                  value={semiMajor}
+                  onChange={(event) =>
+                    onSemiMajor?.(Number(event.target.value))
+                  }
+                />
+              </label>
+              <label htmlFor="comparator-orbit-i">
+                INCLINATION<output>{inclination}°</output>
+                <input
+                  id="comparator-orbit-i"
+                  type="range"
+                  min="0"
+                  max="60"
+                  value={inclination}
+                  onChange={(event) =>
+                    onInclination?.(Number(event.target.value))
+                  }
+                />
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={animateOrbit}
+                  onChange={(event) =>
+                    onAnimateOrbit?.(event.target.checked)
+                  }
+                />
+                ANIMATE ILLUSTRATIVE FLOW
+              </label>
+              <p className="panel-footnote">
+                Illustrative eccentric orbit · e = 0.65.
+                Not a fitted orbit or a predicted sky position. Flow is illustrative.
+              </p>
             </div>
           </Panel>
         </aside>

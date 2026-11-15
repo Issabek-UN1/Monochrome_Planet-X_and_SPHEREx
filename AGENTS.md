@@ -1,6 +1,6 @@
 # Working in this repository
 
-- This checkout is for branch `IDKWht2do`. Commit and push only to `IDKWht2do`; do not modify or push `main`, `Frontfixver`, `Demotest1` or `Demotest1NonFix`.
+- This checkout is for branch `IDKWht2do2`. Commit and push only to `IDKWht2do2`; do not modify or push `main`, `Frontfixver`, `Demotest1` or `Demotest1NonFix`.
 
 - Read README.md and docs/architecture.md before changing module boundaries.
 - Backend source is backend/src/spherex; keep HTTP, archive adapters, science and storage separate.

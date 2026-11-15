@@ -103,7 +103,7 @@ const ModelReference = ({
             search.
           </p>
         </div>
-        <span className="view-tag amber-text">
+        <span className="view-tag">
           <FlaskConical size={16} />
           ILLUSTRATIVE MODELS
         </span>
@@ -144,8 +144,8 @@ const ModelReference = ({
           >
             <defs>
               <linearGradient id="spectral-area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00F0FF" stopOpacity=".2" />
-                <stop offset="100%" stopColor="#00F0FF" stopOpacity="0" />
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity=".15" />
+                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
               </linearGradient>
             </defs>
             {[0, 0.25, 0.5, 0.75, 1].map((value) => (
@@ -215,16 +215,16 @@ const ModelReference = ({
             <path
               d={curve('cold')}
               fill="none"
-              stroke="#00F0FF"
-              strokeWidth="2.5"
+              stroke="#FFFFFF"
+              strokeWidth="2"
             />
             {compare && (
               <path
                 d={curve('solar')}
                 fill="none"
-                stroke="#FF7700"
-                strokeWidth="2"
-                strokeDasharray="7 5"
+                stroke="rgba(255, 255, 255, 0.65)"
+                strokeWidth="1.8"
+                strokeDasharray="6 4"
               />
             )}
             <line
@@ -232,18 +232,18 @@ const ModelReference = ({
               x2={x(wavelength)}
               y1="32"
               y2="264"
-              stroke="#F8FAFC"
+              stroke="#FFFFFF"
               strokeWidth="1.2"
             />
-            <circle cx={x(wavelength)} cy="264" r="4" fill="#F8FAFC" />
+            <circle cx={x(wavelength)} cy="264" r="4" fill="#FFFFFF" />
           </svg>
           <div className="chart-legend">
             <span>
-              <i className="cyan-line" />
+              <i className="solid-line" />
               Cold-body continuum / {temperature} K
             </span>
             <span>
-              <i className="amber-line" />
+              <i className="dashed-line" />
               Reflected-solar shape / 5772 K reference
             </span>
           </div>
