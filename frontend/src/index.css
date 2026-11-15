@@ -18,6 +18,9 @@
   --muted: rgba(255, 255, 255, 0.6);
   --line: rgba(255, 255, 255, 0.15);
   --panel: #050505;
+  --ease-editorial: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-shift: 650ms;
+  --duration-hover: 300ms;
   color-scheme: dark;
 }
 * {
@@ -104,7 +107,7 @@ small {
 .mission-app {
   min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
   background: #000000;
 }
 .hud-grid-enabled {
@@ -131,8 +134,9 @@ small {
   top: 8px;
 }
 .command-deck {
-  position: relative;
-  z-index: 10;
+  position: sticky;
+  top: 0;
+  z-index: 50;
   background: #000000;
   border-bottom: 1px solid var(--line);
 }
@@ -239,9 +243,25 @@ small {
 .deck-bottom {
   min-height: 52px;
 }
-.deck-bottom nav {
+.mode-nav {
+  position: relative;
   display: flex;
+  align-items: center;
   gap: 32px;
+  transition:
+    opacity 450ms var(--ease-editorial),
+    transform 450ms var(--ease-editorial);
+  will-change: opacity, transform;
+}
+.mode-nav.mode-nav-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+.mode-nav.mode-nav-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 .mode-button {
   display: flex;
@@ -254,7 +274,7 @@ small {
   letter-spacing: 1px;
   color: var(--muted);
   white-space: nowrap;
-  transition: color 0.15s;
+  transition: color var(--duration-hover) var(--ease-editorial);
 }
 .mode-button:hover {
   color: #ffffff;
@@ -263,18 +283,18 @@ small {
   color: #ffffff;
 }
 .mode-button:after {
-  content: '';
-  height: 2px;
-  background: #ffffff;
+  display: none !important;
+}
+.mode-indicator-bar {
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 0;
-  transform: scaleX(0);
-  transition: transform 0.2s ease;
-}
-.mode-button.active:after {
-  transform: scaleX(1);
+  height: 2px;
+  background-color: #ffffff;
+  pointer-events: none;
+  transition:
+    transform 500ms var(--ease-editorial),
+    width 500ms var(--ease-editorial);
 }
 .mode-index {
   font-size: 8px;
@@ -298,6 +318,12 @@ small {
   padding: 34px 3.2vw 48px;
   min-height: calc(100vh - 190px);
 }
+.mission-main.mode-vault {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 200vh;
+}
 .mode-content {
   animation: workspace-enter 0.35s ease both;
 }
@@ -309,6 +335,300 @@ small {
   align-items: center;
   gap: 9px;
 }
+
+/* Staggered Hero Entrance Animations */
+@keyframes heroEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-stagger {
+  opacity: 0;
+  animation: heroEntrance var(--duration-shift) var(--ease-editorial) forwards;
+}
+
+.hero-stagger-1 {
+  animation-delay: 0ms;
+}
+.hero-stagger-2 {
+  animation-delay: 60ms;
+}
+.hero-stagger-3 {
+  animation-delay: 120ms;
+}
+.hero-stagger-4 {
+  animation-delay: 180ms;
+}
+.hero-stagger-5 {
+  animation-delay: 240ms;
+}
+
+/* Tab Content Crossfade with 6px Vertical Drift */
+@keyframes modeContentCrossfade {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mode-content {
+  animation: modeContentCrossfade 350ms var(--ease-editorial) forwards;
+}
+
+.vault-mode {
+  min-height: 200vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #000000;
+  width: 100%;
+}
+
+.vault-hero-section {
+  min-height: calc(100vh - 60px);
+  height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 3.2vw;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: transparent;
+  z-index: 1;
+}
+
+.vault-hero-section .vault-layout {
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  height: 100%;
+  min-height: 0;
+  align-items: center;
+}
+
+.vault-hero-section .vault-window {
+  height: calc(100vh - 130px);
+  max-height: 680px;
+  min-height: 440px;
+}
+
+.vault-directory-section {
+  min-height: calc(100vh - 60px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 70px 3.2vw 80px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: transparent;
+  scroll-margin-top: 60px;
+  z-index: 1;
+}
+
+.vault-directory-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.vault-directory-container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.vault-directory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+}
+
+.vault-directory-meta {
+  font: 11px var(--font-mono);
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+}
+
+.vault-directory-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.vault-directory-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.vault-directory-row.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.vault-directory-row:hover {
+  border-bottom-color: #ffffff;
+  box-shadow: inset 0 1px 0 #ffffff;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.vault-directory-row-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.vault-directory-index {
+  font: 14px var(--font-mono);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2px;
+  min-width: 24px;
+}
+
+.vault-directory-sep {
+  font: 14px var(--font-mono);
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.vault-directory-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.vault-directory-row:hover .vault-directory-title-block {
+  transform: translateX(6px);
+}
+
+.vault-directory-title-line {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.vault-directory-title {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #ffffff;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.vault-directory-badge {
+  font: 9px/1 var(--font-mono);
+  letter-spacing: 1px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.vault-directory-desc {
+  font: 12px var(--font-mono);
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.5px;
+}
+
+.vault-directory-row-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.vault-directory-tag {
+  font: 9px var(--font-mono);
+  letter-spacing: 1.5px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
+  border: 1px solid #ffffff;
+}
+
+.vault-directory-arrow {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.35);
+  transform: translateX(0);
+  transition:
+    color 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, color;
+}
+
+.vault-directory-row:hover .vault-directory-arrow {
+  color: #ffffff;
+  opacity: 1;
+  transform: translateX(4px);
+}
+
+.vault-directory-targets {
+  margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+  .vault-hero-section {
+    height: auto;
+    min-height: calc(100vh - 60px);
+    padding: 32px 16px;
+  }
+  .vault-hero-section .vault-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .vault-hero-section .vault-window {
+    height: 380px;
+    min-height: 320px;
+  }
+  .vault-directory-section {
+    min-height: auto;
+    padding: 48px 16px 60px;
+  }
+  .vault-directory-row {
+    padding: 18px 12px;
+  }
+  .vault-directory-title-line {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
 .vault-layout {
   display: grid;
   grid-template-columns: minmax(320px, 1fr) minmax(460px, 1.55fr);
@@ -405,19 +725,29 @@ small {
   position: relative;
   min-width: 0;
   isolation: isolate;
-  background: #000000;
+  background: transparent;
 }
 .vault-window canvas {
   width: 100%;
   height: 100%;
   display: block;
 }
-.celestial-container {
+.celestial-container,
+.astral-horizon-container {
   width: 100%;
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: #000000;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.celestial-container canvas,
+.astral-horizon-container canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 .webgl-host {
   position: absolute;
@@ -642,25 +972,26 @@ dd {
 .target-card {
   flex: 1 0 185px;
   text-align: left;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   padding: 17px;
   background: #000000;
   position: relative;
   overflow: hidden;
   scroll-snap-align: center;
   transition:
-    transform 0.2s,
-    border-color 0.2s,
-    background 0.2s;
+    transform var(--duration-hover) var(--ease-editorial),
+    border-color var(--duration-hover) var(--ease-editorial),
+    background var(--duration-hover) var(--ease-editorial);
   min-width: 0;
 }
 .target-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.04);
 }
 .target-card.selected {
-  border-color: #ffffff;
-  background: #080808;
+  border-color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08);
 }
 .target-card-top,
 .target-card-bottom {
@@ -676,6 +1007,15 @@ dd {
 }
 .target-card-arrow {
   color: #ffffff;
+  transition:
+    transform var(--duration-hover) var(--ease-editorial),
+    opacity var(--duration-hover) var(--ease-editorial);
+  opacity: 0.4;
+}
+.target-card:hover .target-card-arrow,
+.target-card.selected .target-card-arrow {
+  transform: translate(2px, -2px);
+  opacity: 1;
 }
 .card-reticle {
   height: 44px;

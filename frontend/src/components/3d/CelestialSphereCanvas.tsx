@@ -1,518 +1,635 @@
-import { useEffect, useRef, useState } from 'react'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { CURATED_TARGETS, type EnhancedTarget } from '../../api/client'
-import { playTone } from '../../utils/audio'
+import React, { useEffect, useRef } from 'react'
+import type { EnhancedTarget } from '../../api/client'
 
-interface Props {
+export type TargetId =
+  | 'wise-0855'
+  | 'barnards-star'
+  | 'epsilon-indi-b'
+  | 'rw-aurigae'
+  | 'r-draconis'
+
+export interface Props {
+  target?: EnhancedTarget
+  className?: string
   targetRa?: number
   targetDec?: number
-  className?: string
-  target?: EnhancedTarget
   onSelect?: (target: EnhancedTarget) => void
   semiMajor?: number
   inclination?: number
   animated?: boolean
 }
 
-// Target-specific orbital signatures to demonstrate dynamic orbit morphing
-const TARGET_ORBIT_CONFIG: Record<
-  string,
-  { inclination: number; eccentricity: number; semiMajor: number }
-> = {
-  'wise-0855': { inclination: 30, eccentricity: 0.65, semiMajor: 600 },
-  'barnards-star': { inclination: 18, eccentricity: 0.35, semiMajor: 520 },
-  'epsilon-indi-b': { inclination: 42, eccentricity: 0.58, semiMajor: 680 },
-  'rw-aurigae': { inclination: 55, eccentricity: 0.72, semiMajor: 750 },
-  'r-draconis': { inclination: 68, eccentricity: 0.22, semiMajor: 480 },
+interface HorizonSignature {
+  waveAmplitude: number
+  waveFrequency: number
+  waveSpeed: number
+  tiltAngle: number
+  lensingRadius: number
+  haloIntensity: number
+  dopplerBias: number
+  secondaryHarmonic: number
+  wellDepth: number
 }
 
-function vector(ra: number, dec: number, radius = 2.8) {
-  const alpha = THREE.MathUtils.degToRad(ra),
-    delta = THREE.MathUtils.degToRad(dec)
-  return new THREE.Vector3(
-    radius * Math.cos(delta) * Math.cos(alpha),
-    radius * Math.sin(delta),
-    -radius * Math.cos(delta) * Math.sin(alpha),
-  )
+const DEFAULT_SIGNATURE: HorizonSignature = {
+  waveAmplitude: 16,
+  waveFrequency: 5.2,
+  waveSpeed: 0.55,
+  tiltAngle: -0.045,
+  lensingRadius: 118,
+  haloIntensity: 0.8,
+  dopplerBias: 0.16,
+  secondaryHarmonic: 0.22,
+  wellDepth: 34,
 }
 
-export const CelestialSphereCanvas = ({
-  targetRa,
-  targetDec,
-  className = '',
+const TARGET_SIGNATURES: Record<string, HorizonSignature> = {
+  // Ultra-cold Y-dwarf: deep, slow thermal swell & subtle negative inclination
+  'wise-0855': {
+    waveAmplitude: 14,
+    waveFrequency: 4.4,
+    waveSpeed: 0.42,
+    tiltAngle: -0.062,
+    lensingRadius: 114,
+    haloIntensity: 0.74,
+    dopplerBias: 0.14,
+    secondaryHarmonic: 0.15,
+    wellDepth: 30,
+  },
+  // High proper-motion red dwarf: taut, high-velocity harmonic ripples
+  'barnards-star': {
+    waveAmplitude: 20,
+    waveFrequency: 7.4,
+    waveSpeed: 0.86,
+    tiltAngle: 0.048,
+    lensingRadius: 122,
+    haloIntensity: 0.86,
+    dopplerBias: -0.22,
+    secondaryHarmonic: 0.24,
+    wellDepth: 36,
+  },
+  // Binary brown dwarf pair: dual-harmonic interference beat wave
+  'epsilon-indi-b': {
+    waveAmplitude: 23,
+    waveFrequency: 6.1,
+    waveSpeed: 0.68,
+    tiltAngle: -0.088,
+    lensingRadius: 130,
+    haloIntensity: 0.9,
+    dopplerBias: 0.26,
+    secondaryHarmonic: 0.58,
+    wellDepth: 40,
+  },
+  // Young variable T Tauri disk system: pronounced tilt & sweeping accretion wave
+  'rw-aurigae': {
+    waveAmplitude: 28,
+    waveFrequency: 7.9,
+    waveSpeed: 0.94,
+    tiltAngle: 0.112,
+    lensingRadius: 138,
+    haloIntensity: 0.96,
+    dopplerBias: 0.34,
+    secondaryHarmonic: 0.42,
+    wellDepth: 46,
+  },
+  // Mira-type pulsating red giant: expansive long-period radial oscillation
+  'r-draconis': {
+    waveAmplitude: 25,
+    waveFrequency: 3.9,
+    waveSpeed: 0.38,
+    tiltAngle: -0.026,
+    lensingRadius: 144,
+    haloIntensity: 0.88,
+    dopplerBias: -0.15,
+    secondaryHarmonic: 0.28,
+    wellDepth: 44,
+  },
+}
+
+function lerp(start: number, end: number, factor: number): number {
+  return start + (end - start) * factor
+}
+
+export const AstralHorizonCanvas: React.FC<Props> = ({
   target,
-  onSelect,
-  semiMajor = 600,
-  inclination = 30,
-  animated = true,
-}: Props) => {
-  const host = useRef<HTMLDivElement>(null)
-  const astralRef = useRef<HTMLDivElement>(null)
-  const selection = useRef({
-    ra: target?.ra ?? targetRa ?? 133.7951,
-    dec: target?.dec ?? targetDec ?? -7.2451,
-  })
-  const targetId = target?.id ?? 'wise-0855'
-  const callback = useRef(onSelect)
-  const [fallback, setFallback] = useState(false)
-
-  // Target orbit state references for smooth lerp transitions
-  const targetOrbitProps = useRef({
-    semiMajor,
-    inclination,
-    eccentricity: 0.65,
-    animated,
-  })
+  className = '',
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const effectiveId = (target?.id ?? 'wise-0855') as TargetId
+  const targetSignatureRef = useRef<HorizonSignature>(
+    TARGET_SIGNATURES[effectiveId] ?? DEFAULT_SIGNATURE,
+  )
 
   useEffect(() => {
-    selection.current = {
-      ra: target?.ra ?? targetRa ?? 133.7951,
-      dec: target?.dec ?? targetDec ?? -7.2451,
-    }
-    const preset = TARGET_ORBIT_CONFIG[targetId]
-    targetOrbitProps.current = {
-      semiMajor: preset?.semiMajor ?? semiMajor,
-      inclination: preset?.inclination ?? inclination,
-      eccentricity: preset?.eccentricity ?? 0.65,
-      animated,
-    }
-  }, [target, targetRa, targetDec, targetId, semiMajor, inclination, animated])
+    targetSignatureRef.current =
+      TARGET_SIGNATURES[effectiveId] ?? DEFAULT_SIGNATURE
+  }, [effectiveId])
 
   useEffect(() => {
-    callback.current = onSelect
-  }, [onSelect])
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-  useEffect(() => {
-    const element = host.current
-    if (!element) return
+    const ctx = canvas.getContext('2d', { alpha: true })
+    if (!ctx) return
 
-    let renderer: THREE.WebGLRenderer
-    try {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        powerPreference: 'low-power',
-      })
-    } catch {
-      queueMicrotask(() => setFallback(true))
-      return
+    const prefersReducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+
+    let width = 0
+    let height = 0
+    let dpr = 1
+    let animationFrameId = 0
+    let lastTimestamp = performance.now()
+    let phase = 0
+
+    // Lerped state for silky 60fps parameter morphing
+    const currentSig: HorizonSignature = { ...targetSignatureRef.current }
+
+    // Mouse parallax state with 0.05 inertia damping
+    const targetMouse = { x: 0, y: 0 }
+    const currentMouse = { x: 0, y: 0 }
+
+    const updateDimensions = () => {
+      const parent = canvas.parentElement
+      if (!parent) return
+
+      const rect = parent.getBoundingClientRect()
+      width = Math.max(1, Math.floor(rect.width))
+      height = Math.max(1, Math.floor(rect.height))
+      dpr = Math.min(window.devicePixelRatio || 1, 2)
+
+      canvas.width = Math.floor(width * dpr)
+      canvas.height = Math.floor(height * dpr)
+      canvas.style.width = `${width}px`
+      canvas.style.height = `${height}px`
     }
 
-    // Limit pixel ratio to 1.5 to protect 4K screens from fillrate bottlenecks
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
-    renderer.setClearColor(0x000000, 0)
-    renderer.domElement.setAttribute(
-      'aria-label',
-      'Interactive astral celestial sphere. Drag to orbit, targets also available as catalog cards.',
-    )
-    renderer.domElement.setAttribute('role', 'img')
-    element.appendChild(renderer.domElement)
+    updateDimensions()
+    const resizeObserver = new ResizeObserver(updateDimensions)
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement)
+    }
 
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(43, 1, 0.05, 100)
-    camera.position.copy(vector(selection.current.ra, selection.current.dec, 9))
+    const handlePointerMove = (e: PointerEvent) => {
+      if (width === 0 || height === 0) return
+      const rect = canvas.getBoundingClientRect()
+      const nx = ((e.clientX - rect.left) / width) * 2 - 1
+      const ny = ((e.clientY - rect.top) / height) * 2 - 1
+      targetMouse.x = Math.max(-1, Math.min(1, nx))
+      targetMouse.y = Math.max(-1, Math.min(1, ny))
+    }
 
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.dampingFactor = 0.05
-    controls.enablePan = false
-    controls.minDistance = 4.5
-    controls.maxDistance = 13
+    const handlePointerLeave = () => {
+      targetMouse.x = 0
+      targetMouse.y = 0
+    }
 
-    // Master sphere group holding batched celestial grid
-    const sphereGroup = new THREE.Group()
-    scene.add(sphereGroup)
+    window.addEventListener('pointermove', handlePointerMove, { passive: true })
+    document.addEventListener('mouseleave', handlePointerLeave)
 
-    // 1. Batched Geometry: assemble parallels, meridians, and reference planes into 1 BufferGeometry
-    const gridPositions: number[] = []
-    const R = 2.8
+    const drawWireframePlane = (
+      horizonX: number,
+      horizonY: number,
+      tilt: number,
+      parallaxX: number,
+      parallaxY: number,
+    ) => {
+      const cols = 46
+      const rows = 24
 
-    // Parallels (declinations -75 to +75 in 15 deg steps)
-    const PARALLEL_SEGS = 72
-    for (let dec = -75; dec <= 75; dec += 15) {
-      for (let i = 0; i < PARALLEL_SEGS; i++) {
-        const ra1 = (i / PARALLEL_SEGS) * 360
-        const ra2 = ((i + 1) / PARALLEL_SEGS) * 360
-        const p1 = vector(ra1, dec, R)
-        const p2 = vector(ra2, dec, R)
-        gridPositions.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z)
+      // Span across center-right background behind/below the lensing plane
+      const planeWidth = Math.min(width * 0.96, 1280)
+      const planeDepth = Math.min(height * 0.62, 540)
+      const originX = horizonX + width * 0.04 + parallaxX * 1.35
+      const originY = horizonY + 22 + parallaxY * 1.15
+
+      const cosT = Math.cos(tilt * 0.75)
+      const sinT = Math.sin(tilt * 0.75)
+
+      const projectPoint = (u: number, v: number) => {
+        // u in [-1, 1] (left-right), v in [-1, 1] (far-near)
+        const perspective = 0.62 + (v + 1) * 0.28
+        const rawX = u * (planeWidth * 0.52) * perspective
+        const rawY = v * (planeDepth * 0.42) * perspective
+
+        // Multi-harmonic topological wave
+        const primaryWave =
+          Math.sin(u * currentSig.waveFrequency + phase) *
+          Math.cos(v * (currentSig.waveFrequency * 0.62) - phase * 0.55)
+
+        const secondaryWave =
+          Math.sin(
+            (u * 1.65 + v * 0.95) * currentSig.waveFrequency - phase * 1.25,
+          ) * currentSig.secondaryHarmonic
+
+        // Subtle spacetime depression near the lensing singularity
+        const dxWell = u + 0.18
+        const dyWell = v + 0.15
+        const distSq = dxWell * dxWell * 2.4 + dyWell * dyWell * 3.2
+        const gravitationalWell =
+          -currentSig.wellDepth * Math.exp(-distSq * 3.8)
+
+        const displacementZ =
+          (primaryWave + secondaryWave) * currentSig.waveAmplitude * perspective +
+          gravitationalWell * perspective
+
+        const tiltedX = rawX * cosT - (rawY + displacementZ) * sinT
+        const tiltedY = rawX * sinT + (rawY + displacementZ) * cosT
+
+        // Edge attenuation so wireframe dissolves smoothly into #000000
+        const edgeFadeX = Math.max(0, 1 - Math.pow(Math.abs(u), 2.4))
+        const edgeFadeY = Math.max(0, 1 - Math.pow(Math.abs(v), 2.1))
+        const alpha = edgeFadeX * edgeFadeY
+
+        return {
+          x: originX + tiltedX,
+          y: originY + tiltedY,
+          alpha,
+          crest: Math.max(0, primaryWave + secondaryWave * 0.5),
+        }
       }
-    }
 
-    // Meridians (RA 0 to 345 in 15 deg steps)
-    const MERIDIAN_SEGS = 36
-    for (let ra = 0; ra < 360; ra += 15) {
-      for (let i = 0; i < MERIDIAN_SEGS; i++) {
-        const dec1 = -90 + (i / MERIDIAN_SEGS) * 180
-        const dec2 = -90 + ((i + 1) / MERIDIAN_SEGS) * 180
-        const p1 = vector(ra, dec1, R)
-        const p2 = vector(ra, dec2, R)
-        gridPositions.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z)
+      // Precompute grid vertices once per frame
+      const grid: Array<
+        Array<{ x: number; y: number; alpha: number; crest: number }>
+      > = new Array(rows)
+
+      for (let r = 0; r < rows; r++) {
+        const v = (r / (rows - 1)) * 2 - 1
+        const rowArr = new Array(cols)
+        for (let c = 0; c < cols; c++) {
+          const u = (c / (cols - 1)) * 2 - 1
+          rowArr[c] = projectPoint(u, v)
+        }
+        grid[r] = rowArr
       }
-    }
 
-    // Celestial equator (dec = 0) with higher resolution
-    const EQ_SEGS = 96
-    for (let i = 0; i < EQ_SEGS; i++) {
-      const ra1 = (i / EQ_SEGS) * 360
-      const ra2 = ((i + 1) / EQ_SEGS) * 360
-      const p1 = vector(ra1, 0, R)
-      const p2 = vector(ra2, 0, R)
-      gridPositions.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z)
-    }
+      ctx.save()
+      ctx.lineWidth = 1
 
-    // Single BufferGeometry and LineSegments for entire celestial grid (Draw Call 1)
-    const gridGeometry = new THREE.BufferGeometry()
-    gridGeometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(gridPositions, 3),
-    )
-    const gridMaterial = new THREE.LineBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.18,
-    })
-    const gridSegments = new THREE.LineSegments(gridGeometry, gridMaterial)
-    sphereGroup.add(gridSegments)
+      // Primary longitudinal wave contours (horizontal topological lines)
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols - 1; c++) {
+          const p0 = grid[r][c]
+          const p1 = grid[r][c + 1]
+          const segAlpha = Math.min(p0.alpha, p1.alpha)
+          if (segAlpha < 0.015) continue
 
-    // 2. Planet X Orbit: Second batched LineSegments (Draw Call 2)
-    const orbitGroup = new THREE.Group()
-    scene.add(orbitGroup)
-
-    const ORBIT_SEGS = 120
-    const orbitPositions = new Float32Array(ORBIT_SEGS * 2 * 3)
-    const orbitGeometry = new THREE.BufferGeometry()
-    orbitGeometry.setAttribute(
-      'position',
-      new THREE.BufferAttribute(orbitPositions, 3),
-    )
-    const orbitMaterial = new THREE.LineBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.85,
-    })
-    const orbitSegments = new THREE.LineSegments(orbitGeometry, orbitMaterial)
-    orbitGroup.add(orbitSegments)
-
-    const ORBIT_BASE_A = 1.55
-
-    function updateOrbitBuffer(e: number) {
-      let ptr = 0
-      const a = ORBIT_BASE_A
-      const b = a * Math.sqrt(Math.max(0, 1 - e * e))
-      for (let i = 0; i < ORBIT_SEGS; i++) {
-        const theta1 = (i / ORBIT_SEGS) * Math.PI * 2
-        const theta2 = ((i + 1) / ORBIT_SEGS) * Math.PI * 2
-        const x1 = a * (Math.cos(theta1) - e)
-        const z1 = b * Math.sin(theta1)
-        const x2 = a * (Math.cos(theta2) - e)
-        const z2 = b * Math.sin(theta2)
-        orbitPositions[ptr++] = x1
-        orbitPositions[ptr++] = 0
-        orbitPositions[ptr++] = z1
-        orbitPositions[ptr++] = x2
-        orbitPositions[ptr++] = 0
-        orbitPositions[ptr++] = z2
+          const crestBoost = Math.max(0, (p0.crest + p1.crest) * 0.5) * 0.11
+          const strokeOpacity = Math.min(0.45, segAlpha * (0.16 + crestBoost))
+          ctx.strokeStyle = `rgba(255, 255, 255, ${strokeOpacity.toFixed(4)})`
+          ctx.beginPath()
+          ctx.moveTo(p0.x, p0.y)
+          ctx.lineTo(p1.x, p1.y)
+          ctx.stroke()
+        }
       }
-      orbitGeometry.attributes.position.needsUpdate = true
+
+      // Secondary transverse meridian lines (every 2nd column for architectural restraint)
+      for (let c = 0; c < cols; c += 2) {
+        for (let r = 0; r < rows - 1; r++) {
+          const p0 = grid[r][c]
+          const p1 = grid[r + 1][c]
+          const segAlpha = Math.min(p0.alpha, p1.alpha)
+          if (segAlpha < 0.02) continue
+
+          const strokeOpacity = segAlpha * 0.085
+          ctx.strokeStyle = `rgba(232, 236, 242, ${strokeOpacity.toFixed(4)})`
+          ctx.beginPath()
+          ctx.moveTo(p0.x, p0.y)
+          ctx.lineTo(p1.x, p1.y)
+          ctx.stroke()
+        }
+      }
+
+      // Precision 1px vertex ticks at sparse harmonic nodes
+      for (let r = 4; r < rows - 4; r += 5) {
+        for (let c = 6; c < cols - 6; c += 6) {
+          const pt = grid[r][c]
+          if (pt.alpha < 0.35) continue
+          const tickAlpha = pt.alpha * 0.34
+          ctx.strokeStyle = `rgba(255, 255, 255, ${tickAlpha.toFixed(4)})`
+          ctx.beginPath()
+          ctx.moveTo(pt.x - 2.5, pt.y)
+          ctx.lineTo(pt.x + 2.5, pt.y)
+          ctx.moveTo(pt.x, pt.y - 2.5)
+          ctx.lineTo(pt.x, pt.y + 2.5)
+          ctx.stroke()
+        }
+      }
+
+      ctx.restore()
     }
 
-    function calculateOrbitPoint(anomaly: number, e: number, a = ORBIT_BASE_A) {
-      const b = a * Math.sqrt(Math.max(0, 1 - e * e))
-      return new THREE.Vector3(
-        a * (Math.cos(anomaly) - e),
+    const drawGravitationalLensingHorizon = (
+      cx: number,
+      cy: number,
+      tilt: number,
+    ) => {
+      const r = currentSig.lensingRadius * (width < 768 ? 0.72 : 1)
+      const intensity = currentSig.haloIntensity
+      const doppler = currentSig.dopplerBias
+
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(tilt)
+
+      // 1. Wide ambient silver-white relativistic corona
+      ctx.save()
+      ctx.scale(2.5, 0.72)
+      const coronaGrad = ctx.createRadialGradient(0, 0, r * 0.25, 0, 0, r * 2.1)
+      coronaGrad.addColorStop(
         0,
-        b * Math.sin(anomaly),
+        `rgba(240, 244, 250, ${(0.11 * intensity).toFixed(4)})`,
       )
-    }
-
-    // Tracer dot for Planet X orbit
-    const tracer = new THREE.Mesh(
-      new THREE.SphereGeometry(0.05, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    )
-    orbitGroup.add(tracer)
-
-    // Target beacons (minimal crisp dots)
-    const beacons: THREE.Mesh[] = []
-    CURATED_TARGETS.forEach((item) => {
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.045, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      coronaGrad.addColorStop(
+        0.45,
+        `rgba(210, 218, 228, ${(0.045 * intensity).toFixed(4)})`,
       )
-      mesh.position.copy(vector(item.ra, item.dec, 2.85))
-      mesh.userData.targetId = item.id
-      sphereGroup.add(mesh)
-      beacons.push(mesh)
-    })
+      coronaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = coronaGrad
+      ctx.beginPath()
+      ctx.arc(0, 0, r * 2.1, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
 
-    // Reticle indicator ring around selected target
-    const reticle = new THREE.Mesh(
-      new THREE.TorusGeometry(0.14, 0.005, 4, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    )
-    scene.add(reticle)
-
-    // Pointer lerp inertia & parallax state
-    let targetRotX = 0
-    let targetRotY = 0
-    let currentRotX = 0
-    let currentRotY = 0
-
-    let currentOrbitInc = targetOrbitProps.current.inclination
-    let currentOrbitEcc = targetOrbitProps.current.eccentricity
-    let currentOrbitScale = targetOrbitProps.current.semiMajor / 600
-
-    updateOrbitBuffer(currentOrbitEcc)
-
-    const raycaster = new THREE.Raycaster()
-    const mouse = new THREE.Vector2()
-
-    let dragStart = { x: 0, y: 0 }
-    let hoverId = ''
-    let previousSelection = ''
-    let transition = false
-
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
-
-    const onPointerMove = (event: PointerEvent) => {
-      const bounds = renderer.domElement.getBoundingClientRect()
-      const nx = ((event.clientX - bounds.left) / bounds.width) * 2 - 1
-      const ny = (-(event.clientY - bounds.top) / bounds.height) * 2 + 1
-      mouse.set(nx, ny)
-
-      // Celestial sphere inertia target
-      targetRotY = nx * 0.18
-      targetRotX = -ny * 0.12
-
-      // Subtle GPU-accelerated CSS parallax on the black-hole layer
-      if (astralRef.current && !reduced.matches) {
-        const px = (nx * 14).toFixed(1)
-        const py = (-ny * 10).toFixed(1)
-        astralRef.current.style.transform = `translate3d(${px}px, ${py}px, 0)`
-      }
-
-      raycaster.setFromCamera(mouse, camera)
-      const hit = raycaster.intersectObjects(beacons)[0]
-      const id = hit?.object.userData.targetId as string | undefined
-      if (id && id !== hoverId) playTone('hover')
-      hoverId = id ?? ''
-      renderer.domElement.style.cursor = id ? 'pointer' : 'grab'
-    }
-
-    const onPointerDown = (event: PointerEvent) => {
-      dragStart = { x: event.clientX, y: event.clientY }
-      transition = false
-    }
-
-    const onPointerUp = (event: PointerEvent) => {
-      if (
-        Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y) > 5
+      // 2. Upper bent gravitational lensing light arc (primary Einstein arch)
+      ctx.save()
+      ctx.globalCompositeOperation = 'screen'
+      const upperArcRadius = r * 1.06
+      const upperGlow = ctx.createRadialGradient(
+        r * doppler * 0.45,
+        -r * 0.22,
+        upperArcRadius * 0.78,
+        0,
+        -r * 0.08,
+        upperArcRadius * 1.42,
       )
-        return
-      onPointerMove(event)
-      const selected = CURATED_TARGETS.find((item) => item.id === hoverId)
-      if (selected) {
-        playTone('select')
-        callback.current?.(selected)
-      }
-    }
-
-    renderer.domElement.addEventListener('pointermove', onPointerMove)
-    renderer.domElement.addEventListener('pointerdown', onPointerDown)
-    renderer.domElement.addEventListener('pointerup', onPointerUp)
-
-    const resize = () => {
-      const w = element.clientWidth
-      const h = element.clientHeight
-      if (!w || !h) return
-      renderer.setSize(w, h)
-      camera.aspect = w / h
-      camera.updateProjectionMatrix()
-    }
-
-    const resizeObserver = new ResizeObserver(resize)
-    resizeObserver.observe(element)
-    resize()
-
-    // Smart pause lifecycle control
-    let isIntersecting = true
-    let isDocVisible = !document.hidden
-    let frameId: number | null = null
-    let phase = 0.8
-    let lastTime = 0
-
-    const renderFrame = (time: number) => {
-      frameId = null
-      const delta = lastTime ? Math.min(time - lastTime, 80) : 0
-      lastTime = time
-
-      // Smooth camera transition to target
-      const id = `${selection.current.ra}:${selection.current.dec}`
-      if (previousSelection !== id) {
-        previousSelection = id
-        transition = true
-      }
-      if (transition) {
-        const destination = vector(
-          selection.current.ra,
-          selection.current.dec,
-          8.8,
-        )
-        if (reduced.matches) camera.position.copy(destination)
-        else camera.position.lerp(destination, 0.045)
-        if (camera.position.distanceTo(destination) < 0.02 || reduced.matches)
-          transition = false
-      }
-
-      // Reticle follow
-      const selectedVec = vector(
-        selection.current.ra,
-        selection.current.dec,
-        2.88,
+      upperGlow.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      upperGlow.addColorStop(
+        0.42,
+        `rgba(255, 255, 255, ${(0.44 * intensity).toFixed(4)})`,
       )
-      reticle.position.copy(selectedVec)
-      reticle.lookAt(camera.position)
+      upperGlow.addColorStop(
+        0.65,
+        `rgba(222, 228, 238, ${(0.14 * intensity).toFixed(4)})`,
+      )
+      upperGlow.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = upperGlow
+      ctx.beginPath()
+      ctx.arc(0, -r * 0.05, upperArcRadius * 1.42, Math.PI, 0, false)
+      ctx.fill()
 
-      // Smooth Lerp cursor inertia on celestial sphere
-      currentRotX += (targetRotX - currentRotX) * 0.05
-      currentRotY += (targetRotY - currentRotY) * 0.05
-      sphereGroup.rotation.x = currentRotX
-      sphereGroup.rotation.y = currentRotY
+      // Secondary inverted lower lensed image arc
+      const lowerGlow = ctx.createRadialGradient(
+        -r * doppler * 0.3,
+        r * 0.16,
+        r * 0.72,
+        0,
+        r * 0.06,
+        r * 1.24,
+      )
+      lowerGlow.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      lowerGlow.addColorStop(
+        0.48,
+        `rgba(235, 240, 248, ${(0.24 * intensity).toFixed(4)})`,
+      )
+      lowerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = lowerGlow
+      ctx.beginPath()
+      ctx.arc(0, r * 0.04, r * 1.24, 0, Math.PI, false)
+      ctx.fill()
+      ctx.restore()
 
-      // Smooth Lerp transition of orbital inclination and eccentricity
-      const targetInc = targetOrbitProps.current.inclination
-      const targetEcc = targetOrbitProps.current.eccentricity
-      const targetScale = targetOrbitProps.current.semiMajor / 600
+      // 3. Pure #000000 Event Horizon Shadow Core (occludes inner grid cleanly)
+      const shadowRadius = r * 0.86
+      ctx.fillStyle = '#000000'
+      ctx.beginPath()
+      ctx.arc(0, 0, shadowRadius, 0, Math.PI * 2)
+      ctx.fill()
 
-      currentOrbitInc += (targetInc - currentOrbitInc) * 0.05
-      const prevEcc = currentOrbitEcc
-      currentOrbitEcc += (targetEcc - currentOrbitEcc) * 0.05
-      currentOrbitScale += (targetScale - currentOrbitScale) * 0.05
+      // Razor-sharp 1px Photon Ring with relativistic Doppler gradient
+      const photonGrad = ctx.createLinearGradient(
+        -shadowRadius,
+        -shadowRadius * 0.4,
+        shadowRadius,
+        shadowRadius * 0.4,
+      )
+      const leftBright = doppler < 0 ? 0.88 : 0.24
+      const rightBright = doppler >= 0 ? 0.88 : 0.24
+      photonGrad.addColorStop(
+        0,
+        `rgba(255, 255, 255, ${(leftBright * intensity).toFixed(4)})`,
+      )
+      photonGrad.addColorStop(
+        0.5,
+        `rgba(255, 255, 255, ${(0.62 * intensity).toFixed(4)})`,
+      )
+      photonGrad.addColorStop(
+        1,
+        `rgba(255, 255, 255, ${(rightBright * intensity).toFixed(4)})`,
+      )
+      ctx.strokeStyle = photonGrad
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(0, 0, shadowRadius + 0.5, 0, Math.PI * 2)
+      ctx.stroke()
 
-      if (Math.abs(prevEcc - currentOrbitEcc) > 0.0005) {
-        updateOrbitBuffer(currentOrbitEcc)
-      }
+      // 4. Relativistic Horizontal Accretion Horizon Beam
+      const beamHalfSpan = Math.min(width * 0.52, r * 4.8)
+      ctx.save()
+      ctx.globalCompositeOperation = 'screen'
 
-      // Keep orbit strictly fitted within the R = 2.8 celestial sphere
-      const maxAllowedScale = 2.65 / (ORBIT_BASE_A * (1 + currentOrbitEcc))
-      const boundedScale = Math.min(currentOrbitScale, maxAllowedScale)
+      // Soft horizontal light sheet
+      const sheetGrad = ctx.createLinearGradient(
+        -beamHalfSpan,
+        0,
+        beamHalfSpan,
+        0,
+      )
+      sheetGrad.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      sheetGrad.addColorStop(
+        0.26,
+        `rgba(220, 226, 236, ${(0.12 * intensity).toFixed(4)})`,
+      )
+      sheetGrad.addColorStop(
+        0.5 + doppler * 0.12,
+        `rgba(255, 255, 255, ${(0.52 * intensity).toFixed(4)})`,
+      )
+      sheetGrad.addColorStop(
+        0.74,
+        `rgba(220, 226, 236, ${(0.12 * intensity).toFixed(4)})`,
+      )
+      sheetGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = sheetGrad
+      ctx.beginPath()
+      ctx.moveTo(-beamHalfSpan, 0)
+      ctx.quadraticCurveTo(0, -5.5, beamHalfSpan, 0)
+      ctx.quadraticCurveTo(0, 5.5, -beamHalfSpan, 0)
+      ctx.closePath()
+      ctx.fill()
 
-      orbitGroup.scale.setScalar(boundedScale)
-      orbitGroup.rotation.x = THREE.MathUtils.degToRad(currentOrbitInc)
+      // Razor-sharp 1px axial filament
+      const hairlineGrad = ctx.createLinearGradient(
+        -beamHalfSpan * 0.92,
+        0,
+        beamHalfSpan * 0.92,
+        0,
+      )
+      hairlineGrad.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      hairlineGrad.addColorStop(
+        0.22,
+        `rgba(255, 255, 255, ${(0.28 * intensity).toFixed(4)})`,
+      )
+      hairlineGrad.addColorStop(
+        0.5 + doppler * 0.1,
+        `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(4)})`,
+      )
+      hairlineGrad.addColorStop(
+        0.78,
+        `rgba(255, 255, 255, ${(0.28 * intensity).toFixed(4)})`,
+      )
+      hairlineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      ctx.strokeStyle = hairlineGrad
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(-beamHalfSpan * 0.92, 0)
+      ctx.lineTo(beamHalfSpan * 0.92, 0)
+      ctx.stroke()
 
-      if (!reduced.matches && targetOrbitProps.current.animated) {
-        phase += delta * 0.00015
-      }
-      tracer.position.copy(calculateOrbitPoint(phase, currentOrbitEcc))
-
-      controls.update()
-      renderer.render(scene, camera)
-
-      // Schedule next frame only if still visible
-      if (isIntersecting && isDocVisible) {
-        frameId = requestAnimationFrame(renderFrame)
-      }
+      ctx.restore()
+      ctx.restore()
     }
 
-    const startLoop = () => {
-      if (frameId === null && isIntersecting && isDocVisible) {
-        lastTime = performance.now()
-        frameId = requestAnimationFrame(renderFrame)
-      }
+    const render = (now: number) => {
+      const dt = Math.min(0.05, (now - lastTimestamp) / 1000)
+      lastTimestamp = now
+
+      // 1. Lerp mouse parallax with exact 0.05 damping factor
+      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.05
+      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.05
+
+      // 2. Smoothly morph target harmonic parameters
+      const targetSig = targetSignatureRef.current
+      const morphRate = 0.045
+      currentSig.waveAmplitude = lerp(
+        currentSig.waveAmplitude,
+        targetSig.waveAmplitude,
+        morphRate,
+      )
+      currentSig.waveFrequency = lerp(
+        currentSig.waveFrequency,
+        targetSig.waveFrequency,
+        morphRate,
+      )
+      currentSig.waveSpeed = lerp(
+        currentSig.waveSpeed,
+        targetSig.waveSpeed,
+        morphRate,
+      )
+      currentSig.tiltAngle = lerp(
+        currentSig.tiltAngle,
+        targetSig.tiltAngle,
+        morphRate,
+      )
+      currentSig.lensingRadius = lerp(
+        currentSig.lensingRadius,
+        targetSig.lensingRadius,
+        morphRate,
+      )
+      currentSig.haloIntensity = lerp(
+        currentSig.haloIntensity,
+        targetSig.haloIntensity,
+        morphRate,
+      )
+      currentSig.dopplerBias = lerp(
+        currentSig.dopplerBias,
+        targetSig.dopplerBias,
+        morphRate,
+      )
+      currentSig.secondaryHarmonic = lerp(
+        currentSig.secondaryHarmonic,
+        targetSig.secondaryHarmonic,
+        morphRate,
+      )
+      currentSig.wellDepth = lerp(
+        currentSig.wellDepth,
+        targetSig.wellDepth,
+        morphRate,
+      )
+
+      const motionScale = prefersReducedMotion ? 0.15 : 1
+      phase += dt * currentSig.waveSpeed * 1.45 * motionScale
+
+      ctx.save()
+      ctx.scale(dpr, dpr)
+
+      // Clear transparent viewport so underlying gravitationally lensed stars shine through
+      ctx.clearRect(0, 0, width, height)
+
+      // Anchor lensing centerpiece in unobstructed center-right horizon space
+      const isCompact = width < 920
+      const baseHorizonX = isCompact ? width * 0.56 : width * 0.64
+      const baseHorizonY = isCompact ? height * 0.38 : height * 0.44
+
+      const parallaxX = currentMouse.x * 22
+      const parallaxY = currentMouse.y * 14
+      const effectiveTilt =
+        currentSig.tiltAngle + currentMouse.x * 0.032 - currentMouse.y * 0.018
+
+      const horizonX = baseHorizonX + parallaxX
+      const horizonY = baseHorizonY + parallaxY
+
+      // Render warped topological wireframe plane first, then lensing halo in front
+      drawWireframePlane(
+        horizonX,
+        horizonY,
+        effectiveTilt,
+        parallaxX,
+        parallaxY,
+      )
+      drawGravitationalLensingHorizon(horizonX, horizonY, effectiveTilt)
+
+      ctx.restore()
+
+      animationFrameId = window.requestAnimationFrame(render)
     }
 
-    const stopLoop = () => {
-      if (frameId !== null) {
-        cancelAnimationFrame(frameId)
-        frameId = null
-      }
-    }
-
-    // Smart pause via IntersectionObserver
-    const visibilityObserver = new IntersectionObserver(([entry]) => {
-      isIntersecting = entry.isIntersecting
-      if (isIntersecting) {
-        startLoop()
-      } else {
-        stopLoop()
-      }
-    })
-    visibilityObserver.observe(element)
-
-    // Smart pause via Page Visibility API
-    const onVisibilityChange = () => {
-      isDocVisible = !document.hidden
-      if (isDocVisible) {
-        startLoop()
-      } else {
-        stopLoop()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-
-    startLoop()
+    animationFrameId = window.requestAnimationFrame(render)
 
     return () => {
-      stopLoop()
+      window.cancelAnimationFrame(animationFrameId)
       resizeObserver.disconnect()
-      visibilityObserver.disconnect()
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-      controls.dispose()
-      renderer.domElement.removeEventListener('pointermove', onPointerMove)
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown)
-      renderer.domElement.removeEventListener('pointerup', onPointerUp)
-
-      scene.traverse((object) => {
-        if (
-          object instanceof THREE.Mesh ||
-          object instanceof THREE.Line ||
-          object instanceof THREE.LineSegments ||
-          object instanceof THREE.Points
-        ) {
-          object.geometry.dispose()
-          const materials = Array.isArray(object.material)
-            ? object.material
-            : [object.material]
-          materials.forEach((material) => material.dispose())
-        }
-      })
-      renderer.dispose()
-      renderer.domElement.remove()
+      window.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('mouseleave', handlePointerLeave)
     }
-  }, [targetId])
+  }, [])
 
   return (
-    <div className={`celestial-container ${className}`}>
-      {/* Layer 1: GPU-accelerated CSS Astral Horizon & Accretion Halo */}
-      <div className="astral-underlay-wrap" aria-hidden="true">
-        <div className="astral-black-hole" ref={astralRef}>
-          <div className="astral-lensing-arc" />
-          <div className="astral-accretion-disk" />
-          <div className="astral-shadow" />
-          <div className="astral-photon-ring" />
-        </div>
-      </div>
-
-      {/* Layer 2: Transparent Three.js WebGL canvas */}
-      <div className="webgl-host" ref={host} />
-
-      {fallback && (
-        <div className="webgl-fallback">
-          <svg
-            viewBox="0 0 600 420"
-            aria-label="Static celestial reference grid"
-          >
-            <ellipse cx="300" cy="210" rx="185" ry="185" />
-            <ellipse cx="300" cy="210" rx="75" ry="185" />
-            <ellipse cx="300" cy="210" rx="145" ry="185" />
-            <ellipse cx="300" cy="210" rx="185" ry="70" />
-            <path d="M115 210H485M300 25V395" />
-          </svg>
-          <p>WebGL unavailable · use target controls below</p>
-        </div>
-      )}
+    <div
+      className={`astral-horizon-container ${className}`}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        background: 'transparent',
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className="astral-horizon-canvas"
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+        }}
+      />
     </div>
   )
 }
+
+export { AstralHorizonCanvas as CelestialSphereCanvas }
+export default AstralHorizonCanvas

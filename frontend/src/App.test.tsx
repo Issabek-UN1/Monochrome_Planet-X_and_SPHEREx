@@ -65,3 +65,39 @@ it('restores URL coordinates and keeps them across workspace navigation', async 
   await screen.findByText('ICRS test canvas')
   expect(window.location.search).toContain('dec=-20')
 })
+
+it('starts with minimal header at scrollY 0 in vault mode and reveals tabs on scroll', async () => {
+  render(<App />)
+  await screen.findByText('ICRS test canvas')
+
+  const nav = screen.getByLabelText('Mission modes')
+  expect(nav.classList.contains('mode-nav-hidden')).toBe(true)
+
+  // Simulate scroll past hero
+  window.scrollY = 250
+  fireEvent.scroll(window)
+
+  await waitFor(() => {
+    expect(nav.classList.contains('mode-nav-visible')).toBe(true)
+  })
+})
+
+it('triggers smooth scroll to Section 2 when clicking EXPLORE ARCHIVE button', async () => {
+  render(<App />)
+  await screen.findByText('ICRS test canvas')
+
+  const section2 = document.getElementById('vault-directory-section')
+  expect(section2).toBeTruthy()
+
+  const scrollIntoViewMock = vi.fn()
+  if (section2) {
+    section2.scrollIntoView = scrollIntoViewMock
+  }
+
+  const exploreBtn = screen.getByRole('button', {
+    name: /EXPLORE ARCHIVE/i,
+  })
+  fireEvent.click(exploreBtn)
+
+  expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth' })
+})

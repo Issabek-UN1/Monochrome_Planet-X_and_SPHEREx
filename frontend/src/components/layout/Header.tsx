@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Orbit } from 'lucide-react'
 import type { Capabilities } from '@monochrome-spherex/api-client'
 import { spherexApi } from '../../api/client'
@@ -11,10 +11,24 @@ interface Props {
   onSound: () => void
   grid: boolean
   onGrid: () => void
+  minimal?: boolean
 }
 
-export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
+export function Header({
+  mode,
+  onMode,
+  sound,
+  onSound,
+  grid,
+  onGrid,
+  minimal = false,
+}: Props) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
+  const navRef = useRef<HTMLElement | null>(null)
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({
+    left: 0,
+    width: 0,
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -35,6 +49,24 @@ export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
     }
   }, [])
 
+  // Update sliding indicator bar position with high accuracy
+  useEffect(() => {
+    const updateIndicator = () => {
+      if (!navRef.current) return
+      const activeBtn = navRef.current.querySelector<HTMLButtonElement>(`[data-mode="${mode}"]`)
+      if (activeBtn) {
+        setIndicatorStyle({
+          left: activeBtn.offsetLeft,
+          width: activeBtn.offsetWidth,
+        })
+      }
+    }
+
+    updateIndicator()
+    window.addEventListener('resize', updateIndicator)
+    return () => window.removeEventListener('resize', updateIndicator)
+  }, [mode, minimal])
+
   const live = capabilities?.provider === 'irsa'
 
   return (
@@ -54,10 +86,15 @@ export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
           </span>
           <span>MONOCHROME</span>
         </a>
-        <nav aria-label="Mission modes">
+        <nav
+          className={`mode-nav ${minimal ? 'mode-nav-hidden' : 'mode-nav-visible'}`}
+          ref={navRef}
+          aria-label="Mission modes"
+        >
           {MODES.map((item, index) => (
             <button
               key={item.id}
+              data-mode={item.id}
               className={`mode-button ${mode === item.id ? 'active' : ''}`}
               aria-current={mode === item.id ? 'page' : undefined}
               onClick={() => onMode(item.id)}
@@ -67,6 +104,14 @@ export function Header({ mode, onMode, sound, onSound, grid, onGrid }: Props) {
               <span>{item.label}</span>
             </button>
           ))}
+          <span
+            className="mode-indicator-bar"
+            style={{
+              transform: `translateX(${indicatorStyle.left}px)`,
+              width: `${indicatorStyle.width}px`,
+            }}
+            aria-hidden="true"
+          />
         </nav>
       </div>
 

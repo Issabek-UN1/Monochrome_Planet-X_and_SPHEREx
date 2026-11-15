@@ -1,11 +1,8 @@
 import { useEffect, useRef } from 'react'
-import {
-  ArrowUpRight,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { CURATED_TARGETS, type EnhancedTarget } from '../../api/client'
 import { playTone } from '../../utils/audio'
+
 export function TargetCarousel({
   target,
   onSelect,
@@ -14,12 +11,12 @@ export function TargetCarousel({
   onSelect: (target: EnhancedTarget) => void
 }) {
   const rail = useRef<HTMLDivElement>(null)
-  const index = CURATED_TARGETS.findIndex((item) => item.id === target.id)
+
   useEffect(() => {
     const card = rail.current?.querySelector<HTMLElement>(
       `[data-target="${target.id}"]`,
     )
-    if (card && rail.current)
+    if (card && rail.current && typeof rail.current.scrollTo === 'function')
       rail.current.scrollTo({
         left:
           card.offsetLeft -
@@ -31,34 +28,11 @@ export function TargetCarousel({
           : 'smooth',
       })
   }, [target.id])
-  function step(direction: number) {
-    playTone('select')
-    onSelect(
-      CURATED_TARGETS[
-        (index + direction + CURATED_TARGETS.length) % CURATED_TARGETS.length
-      ],
-    )
-  }
+
   return (
     <section className="target-rail-section" aria-label="Challenge targets">
       <div className="section-label">
         <span>CATALOG / 05 CHALLENGE FIELDS</span>
-        <div>
-          <button
-            className="icon-button"
-            onClick={() => step(-1)}
-            aria-label="Previous target"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            className="icon-button"
-            onClick={() => step(1)}
-            aria-label="Next target"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
       </div>
       <div className="target-rail" ref={rail}>
         {CURATED_TARGETS.map((item, itemIndex) => {
@@ -67,8 +41,11 @@ export function TargetCarousel({
             <button
               key={item.id}
               data-target={item.id}
-              className={`target-card ${isSelected ? 'selected' : ''}`}
+              className={`target-card hero-stagger ${isSelected ? 'selected' : ''}`}
               aria-pressed={isSelected}
+              style={{
+                animationDelay: `${240 + itemIndex * 60}ms`,
+              }}
               onClick={() => {
                 playTone('select')
                 onSelect(item)
