@@ -30,7 +30,7 @@ def validate_url(url: str, redirect: bool = False) -> str:
         )
         or (
             redirect
-            and p.netloc in ("ws-cadc.canfar.net", "ws-uv.canfar.net")
+            and p.netloc in ("ws-cadc.canfar.net", "ws-uv.canfar.net", "ws-sf.canfar.net")
             and p.path.startswith("/minoc/files/")
             and "/cadc:NEOSSAT/" in path
         )

@@ -93,3 +93,7 @@ uv run python scripts/verify_neossat.py
 Для фронтенда: `capabilities.supplemental_sources.neossat` перечисляет операции.
 Общие поля `capabilities.provider/synthetic` описывают основной SPHEREx-режим;
 для NEOSSat используйте `Observation.provider/synthetic` и `Job.request.source`.
+
+Повторная live-проверка выявила ещё один узел CADC: ws-sf.canfar.net.
+Разрешены подтверждённые перенаправления minoc на ws-cadc, ws-uv и ws-sf.canfar.net
+только для пути коллекции NEOSSAT. Посторонние хосты и коллекции остаются запрещены.

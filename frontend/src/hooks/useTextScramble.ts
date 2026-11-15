@@ -6,6 +6,7 @@ export function useTextScramble(finalText: string, durationMs = 450) {
   const [displayText, setDisplayText] = useState(finalText)
 
   useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
     let frame = 0
     const totalFrames = Math.max(8, Math.floor(durationMs / 30))
     const length = finalText.length
@@ -39,5 +40,7 @@ export function useTextScramble(finalText: string, durationMs = 450) {
     return () => clearInterval(interval)
   }, [finalText, durationMs])
 
-  return displayText
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ? finalText
+    : displayText
 }

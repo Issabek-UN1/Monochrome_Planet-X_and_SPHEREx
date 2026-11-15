@@ -126,3 +126,8 @@ def test_archive_failure_is_explicit(settings):
         result = client.get("/api/v1/observations?ra=10&dec=20")
         assert result.status_code == 502
         assert result.json()["error"]["code"] == "archive_error"
+
+
+def test_cors_allows_numeric_loopback(client):
+    response = client.get("/health/live", headers={"Origin": "http://127.0.0.1:5173"})
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"

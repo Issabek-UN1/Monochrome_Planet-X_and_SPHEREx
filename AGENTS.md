@@ -1,5 +1,7 @@
 # Working in this repository
 
+- This checkout is for branch `Frontfixver`. Commit and push only to `Frontfixver`; do not modify or push `main`, `Demotest1` or `Demotest1NonFix`.
+
 - Read README.md and docs/architecture.md before changing module boundaries.
 - Backend source is backend/src/spherex; keep HTTP, archive adapters, science and storage separate.
 - Use Python 3.12+ and uv.lock. Do not commit .env, data, FITS downloads or local caches.
