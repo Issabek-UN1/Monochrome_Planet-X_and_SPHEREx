@@ -5,6 +5,7 @@ Writes a report and exploratory blinks to data/target-validation (ignored by Git
 Checks image usability and temporal coverage, NOT identification/motion of a source.
 """
 
+import argparse
 import asyncio
 import json
 from pathlib import Path
@@ -17,7 +18,7 @@ from spherex.targets import TARGETS
 from spherex.worker import run_once
 
 
-async def main():
+async def main(detector: int, radius_deg: float, fov_deg: float):
     root = Path("data/target-validation")
     settings = Settings(provider="irsa", data_dir=root)
     store = Store(root)
@@ -27,11 +28,16 @@ async def main():
         "synthetic": False,
         "targets": [],
         "scope": "Sampled image usability and blink; no source detection or motion validation",
+        "search_detector": detector,
+        "search_radius_deg": radius_deg,
+        "output_fov_deg": fov_deg,
     }
     for target in TARGETS:
         entry = {"target": target.model_dump(), "status": "failed"}
         try:
-            query = SkySearch(ra=target.ra, dec=target.dec, radius_deg=target.radius_deg, limit=100)
+            query = SkySearch(
+                ra=target.ra, dec=target.dec, radius_deg=radius_deg, detector=detector, limit=100
+            )
             result = await provider.search(query)
             store.save_search(f"validation:{target.id}", result, 0)
             entry.update(
@@ -39,12 +45,12 @@ async def main():
             )
             # Try up to three detector groups; retain the largest time separation in the sample.
             groups = []
-            for detector in range(1, 7):
+            for detector_id in range(1, 7):
                 group = sorted(
                     [
                         o
                         for o in result.observations
-                        if o.detector == detector and o.mjd_start is not None
+                        if o.detector == detector_id and o.mjd_start is not None
                     ],
                     key=lambda o: o.mjd_start,
                 )
@@ -60,7 +66,7 @@ async def main():
                     observation_ids=ids,
                     ra=target.ra,
                     dec=target.dec,
-                    fov_deg=target.fov_deg,
+                    fov_deg=fov_deg,
                     size_px=256,
                 )
                 job = store.enqueue(request, 100)
@@ -88,4 +94,9 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--detector", type=int, choices=range(1, 7), default=4)
+    parser.add_argument("--radius-deg", type=float, default=0.001)
+    parser.add_argument("--fov-deg", type=float, default=0.1)
+    args = parser.parse_args()
+    asyncio.run(main(args.detector, args.radius_deg, args.fov_deg))

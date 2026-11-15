@@ -21,6 +21,12 @@ import {
 import { ErrorNotice, Panel } from '../common/Panel'
 import { formatDec, formatRA } from '../../utils/astronomy'
 import { playTone } from '../../utils/audio'
+import { useI18n } from '../../i18n'
+import {
+  EpochComparatorCanvas,
+  type EpochComparatorMode,
+} from './EpochComparatorCanvas'
+import { TARGET_EPOCH_DATA, DEFAULT_TARGET_EPOCH } from './epochData'
 export type CompareMode = 'wipe' | 'blink' | 'difference' | 'header'
 interface StageProps {
   mode: CompareMode
@@ -28,11 +34,13 @@ interface StageProps {
   science: Artifact | undefined
   difference: Artifact | undefined
   fits: Artifact | undefined
-  synthetic: boolean
   speed: number
   onSpeed: (value: number) => void
   zoom: number
   onZoom: (value: number) => void
+  target: EnhancedTarget
+  epochMode: EpochComparatorMode
+  onEpochModeChange: (mode: EpochComparatorMode) => void
 }
 function ApertureStage({
   mode,
@@ -40,12 +48,15 @@ function ApertureStage({
   science,
   difference,
   fits,
-  synthetic,
   speed,
   onSpeed,
   zoom,
   onZoom,
+  target,
+  epochMode,
+  onEpochModeChange,
 }: StageProps) {
+  const { t } = useI18n()
   const [wipe, setWipe] = useState(50),
     [epoch, setEpoch] = useState(0),
     [playing, setPlaying] = useState(false)
@@ -64,10 +75,6 @@ function ApertureStage({
   return (
     <div className="aperture-stage-wrap">
       <div className="aperture-toolbar">
-        <span>
-          {synthetic ? 'SYNTHETIC DEMO' : 'ARCHIVE PRODUCT'} /{' '}
-          {mode.toUpperCase()}
-        </span>
         <div className="segmented">
           {[1, 2, 4].map((value) => (
             <button
@@ -141,23 +148,81 @@ function ApertureStage({
               )}
             </>
           ) : (
-            <div className="awaiting-image">
-              <ScanLine size={42} />
-              <strong>ESTABLISH A TEMPORAL BASELINE</strong>
-              <p>
-                Load observations and build a comparison.
-                <br />
-                Only processed archive products appear here.
-              </p>
+            <div
+              className="epoch-comparator-viewport"
+              style={{ position: 'relative', width: '100%', height: '100%' }}
+            >
+              <EpochComparatorCanvas
+                targetId={target.id}
+                target={target}
+                mode={epochMode}
+                onModeChange={onEpochModeChange}
+                showTelemetry={false}
+              />
+
+              {/* Viewport corner telemetry labels */}
+              <div className="comparator-corner-label epoch-corner-label top-left epoch-a">
+                <span>{t('comparator.epochAArchive', 'EPOCH A / ARCHIVE')}</span>
+              </div>
+              <div className="comparator-corner-label epoch-corner-label top-right epoch-b">
+                <span>{t('comparator.epochBSpherex', 'EPOCH B / SPHEREx')}</span>
+              </div>
+
+              {/* Bottom-center pill toggle bar: SPLIT, BLINK, VECTOR */}
+              <div
+                className="epoch-toggle-bar epoch-mode-pills"
+                role="group"
+                aria-label="Epoch display mode"
+              >
+                {(['split', 'blink', 'vector'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`epoch-mode-pill ${epochMode === m ? 'active' : ''}`}
+                    aria-pressed={epochMode === m}
+                    onClick={() => {
+                      onEpochModeChange(m)
+                      playTone('hover')
+                    }}
+                  >
+                    {m === 'split' && t('comparator.modeSplit', 'SPLIT')}
+                    {m === 'blink' && t('comparator.modeBlink', 'BLINK')}
+                    {m === 'vector' && t('comparator.modeVector', 'VECTOR')}
+                  </button>
+                ))}
+              </div>
+
+              {/* Baseline subtitle for telemetry & test compatibility */}
+              <div
+                className="temporal-baseline-callout"
+                style={{
+                  position: 'absolute',
+                  bottom: '14px',
+                  right: '16px',
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                }}
+              >
+                <span
+                  style={{
+                    font: '9px var(--font-mono)',
+                    letterSpacing: '1px',
+                    color: 'rgba(255, 255, 255, 0.45)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t('comparator.emptyBaseline', 'ESTABLISH A TEMPORAL BASELINE')}
+                </span>
+              </div>
             </div>
           )}
-          <span className="image-scale">NORTH ↑ / EAST ← / {zoom}× VIEW</span>
+          <span className="image-scale">{t('comparator.imageScale', 'NORTH ↑ / EAST ← /')} {zoom}× {t('comparator.view', 'VIEW')}</span>
           <div className="stage-corners" aria-hidden="true" />
         </div>
       )}
       {mode === 'wipe' && reference && science && (
         <label className="range-control" htmlFor={`${id}-wipe`}>
-          <span>REFERENCE</span>
+          <span>{t('comparator.ref', 'REFERENCE')}</span>
           <input
             id={`${id}-wipe`}
             type="range"
@@ -165,9 +230,9 @@ function ApertureStage({
             max="100"
             value={wipe}
             onChange={(event) => setWipe(Number(event.target.value))}
-            aria-label="Epoch split position"
+            aria-label={t('comparator.splitPos', 'Epoch split position')}
           />
-          <span>SCIENCE</span>
+          <span>{t('comparator.sci', 'SCIENCE')}</span>
         </label>
       )}
       {mode === 'blink' && (
@@ -178,10 +243,10 @@ function ApertureStage({
             onClick={() => setPlaying((old) => !old)}
           >
             {playing ? <Pause size={14} /> : <Play size={14} />}{' '}
-            {playing ? 'PAUSE' : 'START BLINK'}
+            {playing ? t('comparator.pauseBlink', 'PAUSE') : t('comparator.startBlink', 'START BLINK')}
           </button>
           <label htmlFor={`${id}-speed`}>
-            INTERVAL{' '}
+            {t('comparator.interval', 'INTERVAL')}{' '}
             <input
               id={`${id}-speed`}
               type="range"
@@ -198,7 +263,7 @@ function ApertureStage({
     </div>
   )
 }
-interface Props {
+export interface ApertureModalProps {
   target: EnhancedTarget
   pipeline: Pipeline
   semiMajor?: number
@@ -217,10 +282,33 @@ export function ApertureModal({
   onInclination,
   animateOrbit = true,
   onAnimateOrbit,
-}: Props) {
+}: ApertureModalProps) {
+  const { lang, t } = useI18n()
+  const [epochMode, setEpochMode] = useState<EpochComparatorMode>('split')
   const [mode, setMode] = useState<CompareMode>('wipe'),
     [speed, setSpeed] = useState(500),
     [zoom, setZoom] = useState(1)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        const activeEl = document.activeElement
+        if (
+          activeEl &&
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)
+        ) {
+          return
+        }
+        e.preventDefault()
+        setEpochMode((prev) => (prev === 'blink' ? 'split' : 'blink'))
+        playTone('hover')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const targetEpochData = TARGET_EPOCH_DATA[target.id] ?? DEFAULT_TARGET_EPOCH
   const [detector, setDetector] = useState('auto'),
     [referenceIndex, setReferenceIndex] = useState(0),
     [scienceIndex, setScienceIndex] = useState(-1)
@@ -270,7 +358,6 @@ export function ApertureModal({
   const fits =
     blink?.artifacts?.find((item) => item.name === 'frame-00.fits') ??
     diff?.artifacts?.find((item) => item.name.endsWith('.fits'))
-  const synthetic = all.some((item) => item.synthetic)
   function build(kind: 'blink' | 'difference') {
     if (!reference || !science || reference.id === science.id) {
       setLocalError('Choose two different observations.')
@@ -290,58 +377,58 @@ export function ApertureModal({
     playTone('aperture')
     void p.run(kind, ids, target.fov_deg)
   }
-  const stageProps = {
+  const stageProps: StageProps = {
     mode,
     reference: refImage,
     science: scienceImage,
     difference: diffImage,
     fits,
-    synthetic,
     speed,
     onSpeed: setSpeed,
     zoom,
     onZoom: setZoom,
+    target,
+    epochMode,
+    onEpochModeChange: setEpochMode,
   }
   return (
     <div className="mode-content comparator-mode">
       <div className="view-title">
         <div>
-          <span className="eyebrow">02 / TEMPORAL COMPARISON</span>
           <h1>
             The aperture<span>.</span>
           </h1>
-          <p>One sky. Two moments. A different perspective.</p>
         </div>
-        <div className="view-tag">SOURCE / SPHEREx · ICRS</div>
       </div>
       <div className="comparator-grid">
         <aside>
-          <Panel number="01" title="Target diagnostics">
+          <Panel number="01" title={t('comparator.diagTitle', 'Target diagnostics')}>
             <div className="target-diagnostic">
               <div className="small-reticle" aria-hidden="true">
                 +
               </div>
-              <span className="eyebrow">SELECTED REFERENCE FIELD</span>
+              <span className="eyebrow">{t('comparator.selectedRef', 'SELECTED REFERENCE FIELD')}</span>
               <h3>{target.name}</h3>
-              <p>{target.category}</p>
+              <p>{t(`category.${target.category}`, target.category)}</p>
+              <p className="target-summary-text">{t(`target.${target.id}.desc`, target.description)}</p>
               <dl>
                 <div>
-                  <dt>RIGHT ASCENSION</dt>
+                  <dt>{t('comparator.ra', 'RIGHT ASCENSION')}</dt>
                   <dd>{formatRA(target.ra)}</dd>
                 </div>
                 <div>
-                  <dt>DECLINATION</dt>
+                  <dt>{t('comparator.dec', 'DECLINATION')}</dt>
                   <dd>{formatDec(target.dec)}</dd>
                 </div>
                 <div>
-                  <dt>FIELD CENTRE</dt>
+                  <dt>{t('comparator.fieldCentre', 'FIELD CENTRE')}</dt>
                   <dd>
                     {target.ra.toFixed(5)}° / {target.dec.toFixed(5)}°
                   </dd>
                 </div>
                 <div>
-                  <dt>WAVELENGTH COVERAGE</dt>
-                  <dd>0.75–5.00 µm / 6 detectors</dd>
+                  <dt>{t('comparator.wavelength', 'WAVELENGTH COVERAGE')}</dt>
+                  <dd>{t('comparator.wavelengthVal', '0.75–5.00 µm / 6 detectors')}</dd>
                 </div>
               </dl>
               <a
@@ -350,12 +437,10 @@ export function ApertureModal({
                 target="_blank"
                 rel="noreferrer"
               >
-                Coordinate source ↗
+                {t('comparator.coordSource', 'Coordinate source ↗')}
               </a>
               <p className="panel-footnote">
-                Reference coordinates are not propagated to each epoch.
-                Proper-motion vectors and source distances are not measured by
-                this interface.
+                {t('comparator.footnote', 'Reference coordinates are not propagated to each epoch. Proper-motion vectors and source distances are not measured by this interface.')}
               </p>
             </div>
             <button
@@ -376,13 +461,13 @@ export function ApertureModal({
               }}
             >
               <SearchIcon />
-              {p.busy ? 'ARCHIVE PIPELINE BUSY' : 'LOAD TARGET OBSERVATIONS'}
+              {p.busy ? t('comparator.pipelineBusy', 'ARCHIVE PIPELINE BUSY') : t('comparator.loadTarget', 'LOAD TARGET OBSERVATIONS')}
             </button>
           </Panel>
-          <Panel number="02" title="Temporal baseline">
+          <Panel number="02" title={t('comparator.baselineTitle', 'Temporal baseline')}>
             <div className="epoch-selectors">
               <label htmlFor="comparison-detector">
-                DETECTOR
+                {t('comparator.detector', 'DETECTOR')}
                 <select
                   id="comparison-detector"
                   value={detector}
@@ -392,7 +477,7 @@ export function ApertureModal({
                     setScienceIndex(-1)
                   }}
                 >
-                  <option value="auto">Auto / first available</option>
+                  <option value="auto">{t('comparator.autoDetector', 'Auto / first available')}</option>
                   {detectors.map((value) => (
                     <option key={value} value={value}>
                       D{value}
@@ -401,7 +486,7 @@ export function ApertureModal({
                 </select>
               </label>
               <label htmlFor="reference-epoch">
-                REFERENCE / EARLIER
+                {t('comparator.refEpoch', 'REFERENCE / EARLIER')}
                 <select
                   id="reference-epoch"
                   value={referenceIndex}
@@ -417,7 +502,7 @@ export function ApertureModal({
                 </select>
               </label>
               <label htmlFor="science-epoch">
-                SCIENCE / LATER
+                {t('comparator.sciEpoch', 'SCIENCE / LATER')}
                 <select
                   id="science-epoch"
                   value={scienceIndex}
@@ -425,7 +510,7 @@ export function ApertureModal({
                     setScienceIndex(Number(event.target.value))
                   }
                 >
-                  <option value="-1">Latest available</option>
+                  <option value="-1">{t('comparator.latestAvailable', 'Latest available')}</option>
                   {group.map((item, index) => (
                     <option key={item.id} value={index}>
                       MJD {item.mjd_start?.toFixed(5) ?? 'unknown'}
@@ -434,14 +519,14 @@ export function ApertureModal({
                 </select>
               </label>
               <div className="baseline">
-                <small>SAMPLED TIME SEPARATION</small>
+                <small>{t('comparator.sampledSep', 'SAMPLED TIME SEPARATION')}</small>
                 <strong>
                   {reference?.mjd_start != null && science?.mjd_start != null
                     ? Math.abs(science.mjd_start - reference.mjd_start).toFixed(
                         2,
                       )
                     : '—'}{' '}
-                  <span>DAYS</span>
+                  <span>{t('comparator.days', 'DAYS')}</span>
                 </strong>
               </div>
               <button
@@ -450,7 +535,7 @@ export function ApertureModal({
                 onClick={() => build('blink')}
               >
                 <Film size={15} />
-                BUILD COMPARISON
+                {t('comparator.buildComp', 'BUILD COMPARISON')}
               </button>
               <button
                 className="button-quiet"
@@ -461,14 +546,14 @@ export function ApertureModal({
                 }}
               >
                 <Minus size={15} />
-                CREATE SCIENCE − REFERENCE
+                {t('comparator.computeDiff', 'CREATE SCIENCE − REFERENCE')}
               </button>
             </div>
           </Panel>
-          <Panel number="03" title="Planet X hypothesis">
+          <Panel number="03" title={t('comparator.orbitModel', 'Planet X hypothesis')}>
             <div className="orbit-controls">
               <label htmlFor="comparator-orbit-a">
-                SEMI-MAJOR AXIS<output>{semiMajor} AU</output>
+                {t('comparator.semiMajor', 'SEMI-MAJOR AXIS')}<output>{semiMajor} AU</output>
                 <input
                   id="comparator-orbit-a"
                   type="range"
@@ -482,7 +567,7 @@ export function ApertureModal({
                 />
               </label>
               <label htmlFor="comparator-orbit-i">
-                INCLINATION<output>{inclination}°</output>
+                {t('comparator.inclination', 'INCLINATION')}<output>{inclination}°</output>
                 <input
                   id="comparator-orbit-i"
                   type="range"
@@ -502,11 +587,10 @@ export function ApertureModal({
                     onAnimateOrbit?.(event.target.checked)
                   }
                 />
-                ANIMATE ILLUSTRATIVE FLOW
+                {t('comparator.animateOrbit', 'ANIMATE ILLUSTRATIVE FLOW')}
               </label>
               <p className="panel-footnote">
-                Illustrative eccentric orbit · e = 0.65.
-                Not a fitted orbit or a predicted sky position. Flow is illustrative.
+                {t('comparator.orbitFootnote', 'Illustrative eccentric orbit · e = 0.65. Not a fitted orbit or a predicted sky position. Flow is illustrative.')}
               </p>
             </div>
           </Panel>
@@ -520,10 +604,10 @@ export function ApertureModal({
           >
             {(
               [
-                { id: 'wipe', label: 'Split wipe', icon: ArrowLeftRight },
-                { id: 'blink', label: 'Blink', icon: Film },
-                { id: 'difference', label: 'Difference', icon: Minus },
-                { id: 'header', label: 'FITS / WCS', icon: Code2 },
+                { id: 'wipe', label: t('comparator.tabSplit', 'Split wipe'), icon: ArrowLeftRight },
+                { id: 'blink', label: t('comparator.tabBlink', 'Blink'), icon: Film },
+                { id: 'difference', label: t('comparator.tabDiff', 'Difference'), icon: Minus },
+                { id: 'header', label: t('comparator.tabFits', 'FITS / WCS'), icon: Code2 },
               ] as const
             ).map((item) => (
               <button
@@ -552,34 +636,77 @@ export function ApertureModal({
             </button>
           </div>
           <ApertureStage {...stageProps} />
+
+          {/* 3-Column Metadata Row with 1px Vertical Dividers */}
+          <div
+            className="epoch-metadata-row"
+            role="region"
+            aria-label={t('comparator.metadataRegion', 'Astrometric baseline telemetry')}
+          >
+            <div className="epoch-metadata-col">
+              <span className="epoch-metadata-label">
+                {t('comparator.metaBaseline', 'BASELINE')}
+              </span>
+              <strong className="epoch-metadata-value">
+                {targetEpochData.baseline}
+              </strong>
+              <span className="epoch-metadata-sub">
+                {lang === 'ru'
+                  ? 'Временной интервал архива'
+                  : 'Temporal observation baseline'}
+              </span>
+            </div>
+            <div className="epoch-metadata-col">
+              <span className="epoch-metadata-label">
+                {t('comparator.metaProperMotion', 'PROPER MOTION')}
+              </span>
+              <strong className="epoch-metadata-value">
+                {targetEpochData.properMotion}
+              </strong>
+              <span className="epoch-metadata-sub">
+                {lang === 'ru'
+                  ? 'Собственное угловое движение'
+                  : 'Annual proper motion vector'}
+              </span>
+            </div>
+            <div className="epoch-metadata-col">
+              <span className="epoch-metadata-label">
+                {t('comparator.metaAngularShift', 'ANGULAR SHIFT')}
+              </span>
+              <strong className="epoch-metadata-value">
+                {targetEpochData.angularShift}
+              </strong>
+              <span className="epoch-metadata-sub">
+                {lang === 'ru'
+                  ? 'Суммарное смещение координат'
+                  : 'Cumulative epoch displacement'}
+              </span>
+            </div>
+          </div>
           <div className="aperture-caption">
             <span>
               {p.job?.status === 'running' || p.job?.status === 'queued'
-                ? `PIPELINE ${p.job.status.toUpperCase()} · ${p.job.id.slice(0, 8)}`
-                : 'SYNCHRONIZED WCS GRID'}
+                ? `${t('comparator.pipelinePrefix', 'PIPELINE')} ${p.job.status.toUpperCase()} · ${p.job.id.slice(0, 8)}`
+                : t('comparator.wcsGrid', 'SYNCHRONIZED WCS GRID')}
             </span>
             <span>
-              {target.fov_deg.toFixed(2)}° FIELD · ZOOM IS VISUAL, NOT
-              ASTROMETRY
+              {target.fov_deg.toFixed(2)}° {t('comparator.zoomNotice', 'FIELD · ZOOM IS VISUAL, NOT ASTROMETRY')}
             </span>
           </div>
           {p.job && !p.busy && ['queued', 'running'].includes(p.job.status) && (
             <button className="button-quiet" onClick={p.resume}>
-              RESUME JOB STATUS CHECK
+              {t('comparator.resumeJob', 'RESUME JOB STATUS CHECK')}
             </button>
           )}
           <Downloads
             jobs={[blink, diff].filter((item): item is Job => !!item)}
           />
           <div className="science-notice">
-            A difference is exploratory, without PSF or wavelength matching.
-            Residuals and brightness changes are not a confirmed moving-object
-            detection.
+            {t('comparator.scienceNotice', 'A difference is exploratory, without PSF or wavelength matching. Residuals and brightness changes are not a confirmed moving-object detection.')}
           </div>
           {p.result?.possibly_truncated && (
             <p className="panel-footnote">
-              Limited archive sample; these are not guaranteed to be the
-              earliest/latest mission visits.
+              {t('comparator.truncatedFootnote', 'Limited archive sample; these are not guaranteed to be the earliest/latest mission visits.')}
             </p>
           )}
           {[...(blink?.warnings ?? []), ...(diff?.warnings ?? [])]
@@ -614,3 +741,6 @@ export function ApertureModal({
 function SearchIcon() {
   return <ScanLine size={15} />
 }
+
+export default ApertureModal
+

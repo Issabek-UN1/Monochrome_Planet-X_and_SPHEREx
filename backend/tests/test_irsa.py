@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from spherex.errors import ArchiveError
-from spherex.models import SkySearch
+from spherex.models import JobRequest, SkySearch
 from spherex.providers.irsa import IRSAProvider, parse_csv, validate_data_url
 
 URL = (
@@ -103,3 +103,59 @@ async def test_irsa_does_not_retry_invalid_request(settings, monkeypatch):
     with pytest.raises(ArchiveError):
         await IRSAProvider(settings).search(SkySearch(ra=10, dec=20))
     assert len(calls) == 1
+
+
+async def test_detector_constrains_archive_before_limit_and_preserves_truncation(
+    settings, monkeypatch
+):
+    # Even duplicate archive rows can consume MAXREC; deduplication must not hide truncation.
+    body = CSV + CSV.splitlines(keepends=True)[1]
+
+    def handle(request):
+        assert float(request.url.params["BAND"]) == pytest.approx(1.36e-6)
+        assert request.url.params["MAXREC"] == "2"
+        return httpx.Response(200, content=body)
+
+    monkeypatch.setattr(
+        "spherex.providers.irsa.httpx.AsyncClient",
+        partial(httpx.AsyncClient, transport=httpx.MockTransport(handle)),
+    )
+    result = await IRSAProvider(settings).search(SkySearch(ra=10, dec=20, detector=2, limit=2))
+    assert [o.detector for o in result.observations] == [2]
+    assert result.possibly_truncated
+
+
+async def test_wavelength_constraint_is_not_lost_when_selecting_detector(settings, monkeypatch):
+    def handle(request):
+        assert float(request.url.params["BAND"]) == pytest.approx(1.36e-6)
+        return httpx.Response(200, content=CSV)
+
+    monkeypatch.setattr(
+        "spherex.providers.irsa.httpx.AsyncClient",
+        partial(httpx.AsyncClient, transport=httpx.MockTransport(handle)),
+    )
+    result = await IRSAProvider(settings).search(
+        SkySearch(ra=10, dec=20, detector=2, wavelength_max_um=1.0)
+    )
+    assert result.observations == []
+    assert not result.possibly_truncated
+
+
+async def test_cutout_uses_explicit_degrees(settings, monkeypatch):
+    observation = parse_csv(CSV, SkySearch(ra=10, dec=20), ["spherex_dr1"]).observations[0]
+
+    def handle(request):
+        assert request.url.params["center"] == "10.0,20.0d"
+        assert request.url.params["size"] == "0.1"
+        return httpx.Response(200, content=b"cutout")
+
+    monkeypatch.setattr(
+        "spherex.providers.irsa.httpx.AsyncClient",
+        partial(httpx.AsyncClient, transport=httpx.MockTransport(handle)),
+    )
+    assert (
+        await IRSAProvider(settings).fetch(
+            observation, JobRequest(kind="cutout", observation_ids=[observation.id], ra=10, dec=20)
+        )
+        == b"cutout"
+    )

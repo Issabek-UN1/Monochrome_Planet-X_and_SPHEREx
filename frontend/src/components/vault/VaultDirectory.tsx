@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import type { Mode } from '../layout/modes'
 import { playTone } from '../../utils/audio'
+import { useI18n } from '../../i18n'
 
-interface DirectoryItem {
+export interface DirectoryItem {
   index: string
   mode: Mode
   title: string
@@ -31,13 +32,16 @@ const DIRECTORY_ITEMS: DirectoryItem[] = [
   },
 ]
 
-interface Props {
+export interface VaultDirectoryProps {
   onSelectMode: (mode: Mode) => void
+  className?: string
 }
 
-export const VaultDirectory: React.FC<Props> = ({
+export const VaultDirectory: React.FC<VaultDirectoryProps> = ({
   onSelectMode,
+  className = '',
 }) => {
+  const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [inView, setInView] = useState(() => {
     return typeof window === 'undefined' || !('IntersectionObserver' in window)
@@ -74,7 +78,7 @@ export const VaultDirectory: React.FC<Props> = ({
   return (
     <div
       ref={containerRef}
-      className={`vault-directory-container ${inView ? 'is-revealed' : ''}`}
+      className={`vault-directory-container ${inView ? 'is-revealed' : ''} ${className}`.trim()}
     >
       <header className="vault-directory-header">
         <div className="eyebrow">
@@ -101,14 +105,18 @@ export const VaultDirectory: React.FC<Props> = ({
                 handleRowClick(item.mode)
               }}
               onMouseEnter={() => playTone('hover')}
-              aria-label={`${item.index} / ${item.title} — ${item.description}`}
+              aria-label={`${item.index} / ${t(`directory.${item.mode}.title`, item.title)} — ${t(`directory.${item.mode}.desc`, item.description)}`}
             >
               <div className="vault-directory-row-left">
                 <span className="vault-directory-index">{item.index}</span>
                 <span className="vault-directory-sep">/</span>
                 <div className="vault-directory-title-block">
-                  <span className="vault-directory-title">{item.title}</span>
-                  <span className="vault-directory-desc">{item.description}</span>
+                  <span className="vault-directory-title">
+                    {t(`directory.${item.mode}.title`, item.title)}
+                  </span>
+                  <span className="vault-directory-desc">
+                    {t(`directory.${item.mode}.desc`, item.description)}
+                  </span>
                 </div>
               </div>
 

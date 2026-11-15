@@ -17,6 +17,7 @@ class SkySearch(StrictModel):
     ra: RA
     dec: Dec
     radius_deg: Annotated[Finite, Field(gt=0, le=2)] = 0.05
+    detector: int | None = Field(None, ge=1, le=6)
     mjd_min: Annotated[Finite, Field(ge=0)] | None = None
     mjd_max: Annotated[Finite, Field(ge=0)] | None = None
     wavelength_min_um: Annotated[Finite, Field(ge=0.75, le=5)] | None = None
@@ -25,6 +26,8 @@ class SkySearch(StrictModel):
 
     @model_validator(mode="after")
     def ordered_intervals(self):
+        if self.source == "neossat" and self.detector is not None:
+            raise ValueError("Detector selection is only supported for SPHEREx")
         for lo, hi in [
             (self.mjd_min, self.mjd_max),
             (self.wavelength_min_um, self.wavelength_max_um),
@@ -61,6 +64,7 @@ class SearchResult(BaseModel):
 
 
 class JobKind(StrEnum):
+    spectrum = "spectrum"
     cutout = "cutout"
     stack = "stack"
     difference = "difference"
@@ -71,7 +75,7 @@ class JobRequest(StrictModel):
     source: Literal["spherex", "neossat"] = "spherex"
     kind: JobKind
     observation_ids: list[Annotated[str, Field(pattern=r"^[a-f0-9]{24}$")]] = Field(
-        min_length=1, max_length=12
+        min_length=0, max_length=12
     )
     ra: RA
     dec: Dec
@@ -84,6 +88,12 @@ class JobRequest(StrictModel):
     @model_validator(mode="after")
     def valid_selection(self):
         n = len(self.observation_ids)
+        if self.kind == JobKind.spectrum:
+            if self.source != "spherex" or n:
+                raise ValueError("Spectrum requires SPHEREx coordinates and no observation IDs")
+            return self
+        if not n:
+            raise ValueError("Select at least one observation")
         if len(set(self.observation_ids)) != n:
             raise ValueError("Observation IDs must be unique")
         if self.kind == JobKind.cutout and n != 1:
@@ -142,3 +152,33 @@ class Capabilities(BaseModel):
     time_unit: str
     limits: dict[str, float]
     planned: list[str]
+
+
+class SpectrumSample(BaseModel):
+    channel: int
+    detector: int
+    subchannel: int
+    wavelength_um: Finite
+    surface_brightness_mjy_sr: Finite | None
+    uncertainty_mjy_sr: Finite | None = None
+    nhits: int
+    flags: int
+    usable: bool
+    exclusion_reason: str | None = None
+
+
+class SpectrumResult(BaseModel):
+    ra: RA
+    dec: Dec
+    sampled_ra: RA
+    sampled_dec: Dec
+    source_url: str
+    release: str
+    reject_flags: int
+    source_etag: str | None = None
+    downloaded_bytes: int = 0
+    synthetic: bool = False
+    method: str = "nearest mosaic pixel; no source photometry or local background subtraction"
+    unit: str = "MJy/sr"
+    samples: list[SpectrumSample]
+    warnings: list[str]

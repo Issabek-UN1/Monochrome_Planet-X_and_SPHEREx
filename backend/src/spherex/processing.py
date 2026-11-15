@@ -19,6 +19,10 @@ SCIENCE_WARNINGS = [
 
 
 def validate_observations(request: JobRequest, store: Store, provider: str) -> list[Observation]:
+    if request.kind == JobKind.spectrum:
+        if provider != "irsa":
+            raise ValueError("Real DR1 cube spectra require SPHEREX_PROVIDER=irsa")
+        return []
     if request.source == "neossat":
         provider = "neossat"
         if request.kind not in (JobKind.cutout, JobKind.blink):

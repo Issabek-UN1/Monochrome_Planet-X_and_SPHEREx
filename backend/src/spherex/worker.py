@@ -5,9 +5,11 @@ from uuid import uuid4
 
 from spherex.config import Settings
 from spherex.errors import ArchiveError
+from spherex.models import JobKind
 from spherex.processing import process_job
 from spherex.providers import make_provider
 from spherex.providers.neossat import NEOSSatProvider
+from spherex.spectra import process_spectrum
 from spherex.storage import Store
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,10 @@ async def run_once(store: Store, settings: Settings, provider=None) -> bool:
             if job.request.source == "neossat"
             else provider or make_provider(settings)
         )
-        artifacts, warnings = await process_job(job, store, selected, settings.provider)
+        if job.request.kind == JobKind.spectrum:
+            artifacts, warnings = await process_spectrum(job, store, settings)
+        else:
+            artifacts, warnings = await process_job(job, store, selected, settings.provider)
         store.finish(job.id, owner, artifacts, warnings)
         logger.info("Job %s succeeded", job.id)
     except Exception as exc:

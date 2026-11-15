@@ -3,6 +3,7 @@ import { Orbit } from 'lucide-react'
 import type { Capabilities } from '@monochrome-spherex/api-client'
 import { spherexApi } from '../../api/client'
 import { MODES, type Mode } from './modes'
+import { useI18n } from '../../i18n'
 
 interface Props {
   mode: Mode
@@ -23,6 +24,7 @@ export function Header({
   onGrid,
   minimal = false,
 }: Props) {
+  const { lang, setLang, t } = useI18n()
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
   const navRef = useRef<HTMLElement | null>(null)
   const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({
@@ -63,8 +65,16 @@ export function Header({
     }
 
     updateIndicator()
+    let resizeObserver: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined' && navRef.current) {
+      resizeObserver = new ResizeObserver(updateIndicator)
+      resizeObserver.observe(navRef.current)
+    }
     window.addEventListener('resize', updateIndicator)
-    return () => window.removeEventListener('resize', updateIndicator)
+    return () => {
+      if (resizeObserver) resizeObserver.disconnect()
+      window.removeEventListener('resize', updateIndicator)
+    }
   }, [mode, minimal])
 
   const live = capabilities?.provider === 'irsa'
@@ -101,11 +111,11 @@ export function Header({
             >
               <span className="mode-index">0{index + 1}</span>
               <item.icon size={15} />
-              <span>{item.label}</span>
+              <span>{t(`modes.${item.id}`, item.label)}</span>
             </button>
           ))}
           <span
-            className="mode-indicator-bar"
+            className="mode-indicator-bar mode-nav-slider active-tab-indicator"
             style={{
               transform: `translateX(${indicatorStyle.left}px)`,
               width: `${indicatorStyle.width}px`,
@@ -113,6 +123,19 @@ export function Header({
             aria-hidden="true"
           />
         </nav>
+        <div className="deck-actions">
+          <button
+            type="button"
+            className="lang-toggle-button"
+            onClick={() => setLang(lang === 'en' ? 'ru' : 'en')}
+            aria-label={lang === 'en' ? 'Переключить на русский язык' : 'Switch to English'}
+            title={lang === 'en' ? 'Переключить на русский язык' : 'Switch to English'}
+          >
+            <span className={`lang-opt ${lang === 'en' ? 'active' : ''}`}>EN</span>
+            <span className="lang-slash">/</span>
+            <span className={`lang-opt ${lang === 'ru' ? 'active' : ''}`}>RU</span>
+          </button>
+        </div>
       </div>
 
       {/* Screen reader & test contract accessibility */}
@@ -123,25 +146,25 @@ export function Header({
         >
           <span>
             {!capabilities
-              ? 'API UNAVAILABLE'
+              ? t('header.apiUnavailable')
               : live
-                ? 'IRSA REAL DATA'
-                : 'SYNTHETIC DEMO'}
+                ? t('header.irsaRealData')
+                : t('header.syntheticDemo')}
           </span>
         </div>
         <button
           onClick={onSound}
           aria-pressed={sound}
-          aria-label={sound ? 'Mute sound effects' : 'Enable sound effects'}
+          aria-label={sound ? t('header.soundMute') : t('header.soundEnable')}
         >
-          {sound ? 'Mute sound effects' : 'Enable sound effects'}
+          {sound ? t('header.soundMute') : t('header.soundEnable')}
         </button>
         <button
           onClick={onGrid}
           aria-pressed={grid}
-          aria-label="Toggle HUD grid"
+          aria-label={t('header.gridToggle')}
         >
-          {grid ? 'Grid On' : 'Grid Off'}
+          {grid ? t('header.gridOn') : t('header.gridOff')}
         </button>
       </div>
     </header>

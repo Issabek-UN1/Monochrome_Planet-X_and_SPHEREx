@@ -209,6 +209,36 @@ small {
   align-items: center;
   gap: 18px;
 }
+.lang-toggle-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 5px 12px;
+  font: 10px var(--font-mono);
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 0;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.lang-toggle-button:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+.lang-toggle-button .lang-opt {
+  color: var(--muted);
+  transition: color 0.15s;
+}
+.lang-toggle-button .lang-opt.active {
+  color: #ffffff;
+  font-weight: 700;
+}
+.lang-toggle-button .lang-slash {
+  color: rgba(255, 255, 255, 0.2);
+}
 .provider-status-text {
   font: 11px var(--font-mono);
   letter-spacing: 1px;
@@ -285,7 +315,9 @@ small {
 .mode-button:after {
   display: none !important;
 }
-.mode-indicator-bar {
+.mode-indicator-bar,
+.mode-nav-slider,
+.active-tab-indicator {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -317,6 +349,10 @@ small {
   margin: auto;
   padding: 34px 3.2vw 48px;
   min-height: calc(100vh - 190px);
+}
+.mission-main.mode-comparator {
+  padding-top: 18px;
+  padding-bottom: 32px;
 }
 .mission-main.mode-vault {
   max-width: 100%;
@@ -370,6 +406,18 @@ small {
 }
 .hero-stagger-5 {
   animation-delay: 240ms;
+}
+.hero-stagger-6 {
+  animation-delay: 300ms;
+}
+.hero-stagger-7 {
+  animation-delay: 360ms;
+}
+.hero-stagger-8 {
+  animation-delay: 420ms;
+}
+.hero-stagger-9 {
+  animation-delay: 480ms;
 }
 
 /* Tab Content Crossfade with 6px Vertical Drift */
@@ -763,7 +811,8 @@ small {
   justify-content: center;
 }
 .celestial-container canvas,
-.astral-horizon-container canvas {
+.astral-horizon-container canvas,
+.astral-horizon-canvas {
   width: 100%;
   height: 100%;
   display: block;
@@ -1008,9 +1057,13 @@ dd {
   border-color: rgba(255, 255, 255, 0.5);
   background: rgba(255, 255, 255, 0.04);
 }
-.target-card.selected {
+.target-card.selected,
+.target-card[aria-pressed='true'],
+.target-card[aria-current='true'],
+.target-card.active {
   border-color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 1px #ffffff, inset 0 0 12px rgba(255, 255, 255, 0.05);
 }
 .target-card-top,
 .target-card-bottom {
@@ -1021,7 +1074,10 @@ dd {
   letter-spacing: 1px;
   color: var(--muted);
 }
-.target-card.selected .target-card-top {
+.target-card.selected .target-card-top,
+.target-card[aria-pressed='true'] .target-card-top,
+.target-card[aria-current='true'] .target-card-top,
+.target-card.active .target-card-top {
   color: #ffffff;
 }
 .target-card-arrow {
@@ -1083,11 +1139,22 @@ dd {
 .compact-catalog .target-card-bottom {
   display: none;
 }
+.compact-catalog .target-rail {
+  padding-top: 0;
+  padding-bottom: 6px;
+}
 .compact-catalog .target-card {
-  padding: 13px 16px;
+  padding: 10px 14px;
 }
 .compact-catalog .section-label {
   margin-top: 0;
+}
+.comparator-mode .view-title {
+  margin: 6px 0 16px;
+}
+.comparator-mode .view-title h1 {
+  margin: 0;
+  line-height: 1.1;
 }
 .view-title {
   display: flex;
@@ -1321,8 +1388,7 @@ select {
 .status-failed strong {
   color: #ff7777;
 }
-.viewer-toolbar,
-.aperture-toolbar {
+.viewer-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1330,6 +1396,15 @@ select {
   font: 8px var(--font-mono);
   color: var(--muted);
   margin-bottom: 13px;
+}
+.aperture-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  font: 8px var(--font-mono);
+  color: var(--muted);
+  margin-bottom: 8px;
 }
 .viewer-toolbar > span {
   display: flex;
@@ -1495,10 +1570,46 @@ select {
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 24px;
 }
+.comparator-mode .comparator-grid {
+  gap: 16px;
+}
 .comparator-grid > aside {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+.comparator-mode .comparator-grid > aside {
+  gap: 14px;
+}
+.comparator-mode .hud-panel {
+  padding: 16px;
+}
+.comparator-mode .panel-heading {
+  margin-bottom: 14px;
+}
+.comparator-mode dl {
+  margin: 14px 0;
+}
+.comparator-mode .target-diagnostic h3 {
+  margin: 8px 0 4px;
+}
+.comparator-mode .target-diagnostic .panel-footnote {
+  margin: 12px 0;
+}
+.comparator-mode .compare-mode-tabs {
+  margin-bottom: 10px;
+}
+.comparator-mode .compare-mode-tabs > button:not(.icon-button) {
+  padding: 9px 14px;
+}
+.comparator-mode .aperture-stage-wrap {
+  padding: 12px;
+}
+.comparator-mode .epoch-selectors {
+  gap: 12px;
+}
+.comparator-mode .baseline {
+  padding: 12px 0;
 }
 .target-diagnostic h3 {
   font: 20px var(--font-display);
@@ -1508,6 +1619,12 @@ select {
 .target-diagnostic > p {
   font-size: 11px;
   color: var(--muted);
+}
+.target-diagnostic .target-summary-text {
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 8px 0 12px;
 }
 .target-diagnostic .panel-footnote {
   margin: 18px 0;
@@ -1698,6 +1815,302 @@ select {
   text-align: center;
   padding: 30px;
 }
+
+/* ==========================================================================
+   ASTRONOMICAL EPOCH COMPARATOR & TELEMETRY (MODE 02)
+   Ultra-clean high-contrast editorial monochrome standard (#000000 / #FFFFFF)
+   ========================================================================== */
+
+@keyframes comparatorViewportEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    clip-path: inset(6% 0 6% 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: inset(0% 0 0% 0);
+  }
+}
+
+@keyframes comparatorElementReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Main Astronomical Comparator Viewport */
+.epoch-comparator-viewport,
+.epoch-comparator-stage,
+.epoch-comparator-stage-wrap,
+.epoch-comparator-wrap,
+.epoch-comparator,
+.comparator-astral-viewport,
+.comparator-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 420px;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  animation: comparatorViewportEntrance 550ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, clip-path;
+  user-select: none;
+}
+
+.epoch-comparator-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Staggered Reveal Elements (Reticle, Split Line, Pill Handle, Corner Labels) */
+.comparator-reticle,
+.epoch-reticle,
+.comparator-split-line,
+.split-curtain-line,
+.epoch-split-line,
+.comparator-pill-handle,
+.split-drag-handle,
+.comparator-split-handle,
+.epoch-pill-handle,
+.comparator-corner-label,
+.epoch-corner-label,
+.epoch-corner-tag,
+.comparator-corner-telemetry,
+.epoch-label-a,
+.epoch-label-b {
+  opacity: 0;
+  animation: comparatorElementReveal 350ms ease-out 140ms forwards;
+}
+
+/* Corner Telemetry Badges */
+.comparator-corner-label,
+.epoch-corner-label,
+.comparator-corner-telemetry {
+  position: absolute;
+  top: 14px;
+  font: 10px/1 var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.comparator-corner-label.top-left,
+.epoch-corner-label.epoch-a,
+.comparator-corner-label.epoch-a {
+  left: 14px;
+}
+
+.comparator-corner-label.top-right,
+.epoch-corner-label.epoch-b,
+.comparator-corner-label.epoch-b {
+  right: 14px;
+}
+
+/* Split Curtain Vertical Line & Drag Handle */
+.comparator-split-line,
+.split-curtain-line,
+.epoch-split-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #ffffff;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.comparator-pill-handle,
+.split-drag-handle,
+.comparator-split-handle,
+.epoch-pill-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  height: 28px;
+  border-radius: 9999px;
+  background: #000000;
+  border: 1px solid #ffffff;
+  color: #ffffff;
+  font: 11px var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 20;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.9), 0 0 8px rgba(255, 255, 255, 0.15);
+  transition:
+    background-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.comparator-pill-handle:hover,
+.split-drag-handle:hover,
+.comparator-split-handle:hover,
+.epoch-pill-handle:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* Bottom-Center Mode Pill Toggle Bar (SPLIT, BLINK, VECTOR) */
+.comparator-mode-toggle,
+.comparator-pill-toggle-bar,
+.comparator-view-modes,
+.epoch-mode-pills,
+.epoch-toggle-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  z-index: 20;
+}
+
+.comparator-mode-toggle button,
+.comparator-pill-toggle-bar button,
+.comparator-view-modes button,
+.epoch-mode-pills button,
+.epoch-toggle-bar button {
+  padding: 6px 14px;
+  font: 10px var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  transition:
+    color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  background: transparent;
+}
+
+.comparator-mode-toggle button:hover,
+.comparator-pill-toggle-bar button:hover,
+.comparator-view-modes button:hover,
+.epoch-mode-pills button:hover,
+.epoch-toggle-bar button:hover {
+  color: #ffffff;
+}
+
+.comparator-mode-toggle button.active,
+.comparator-pill-toggle-bar button.active,
+.comparator-view-modes button.active,
+.epoch-mode-pills button.active,
+.epoch-toggle-bar button.active,
+.comparator-mode-toggle button[aria-pressed='true'],
+.comparator-pill-toggle-bar button[aria-pressed='true'],
+.comparator-view-modes button[aria-pressed='true'],
+.epoch-mode-pills button[aria-pressed='true'],
+.epoch-toggle-bar button[aria-pressed='true'] {
+  color: #000000;
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+/* 3-Column Metadata Row with 1px Vertical Dividers */
+.comparator-metadata-row,
+.epoch-metadata-grid,
+.comparator-telemetry-row,
+.epoch-metadata-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: none;
+  background: #000000;
+  width: 100%;
+}
+
+.comparator-metadata-col,
+.epoch-metadata-item,
+.comparator-telemetry-col,
+.epoch-metadata-col {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.comparator-metadata-col:not(:last-child),
+.epoch-metadata-item:not(:last-child),
+.comparator-telemetry-col:not(:last-child),
+.epoch-metadata-col:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.comparator-metadata-label,
+.epoch-metadata-label,
+.telemetry-label {
+  font: 9px var(--font-mono);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.comparator-metadata-value,
+.epoch-metadata-value,
+.telemetry-value {
+  font: 14px var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+.comparator-metadata-sub,
+.epoch-metadata-sub,
+.telemetry-sub {
+  font: 10px var(--font-mono);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+@media (max-width: 768px) {
+  .comparator-metadata-row,
+  .epoch-metadata-grid,
+  .comparator-telemetry-row,
+  .epoch-metadata-row {
+    grid-template-columns: 1fr;
+  }
+  .comparator-metadata-col:not(:last-child),
+  .epoch-metadata-item:not(:last-child),
+  .comparator-telemetry-col:not(:last-child),
+  .epoch-metadata-col:not(:last-child) {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  }
+}
+
 .aperture-dialog {
   color: #ffffff;
   background: #050505;

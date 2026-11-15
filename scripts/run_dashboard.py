@@ -1,5 +1,6 @@
 """Start API, worker and Vite as one supervised local application."""
 
+import json
 import os
 import shutil
 import signal
@@ -13,6 +14,15 @@ import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def missing_frontend_dependencies():
+    frontend = ROOT / "frontend"
+    package = json.loads((frontend / "package.json").read_text(encoding="utf-8"))
+    dependencies = {**package.get("dependencies", {}), **package.get("devDependencies", {})}
+    required = [f"{name}/package.json" for name in dependencies]
+    required += ["vite/bin/vite.js", "tailwindcss/index.css"]
+    return [name for name in required if not (frontend / "node_modules" / name).is_file()]
 
 
 def available(port):
@@ -75,7 +85,10 @@ def main():
     env["VITE_API_PROXY_TARGET"] = f"http://127.0.0.1:{port}"
     env["PATH"] = str(Path(node).parent) + os.pathsep + env.get("PATH", "")
     hidden = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-    if env.get("SKIP_SYNC") != "1":
+    missing = missing_frontend_dependencies()
+    if env.get("SKIP_SYNC") != "1" or missing:
+        if missing:
+            print("Repairing incomplete frontend dependencies: " + ", ".join(missing), flush=True)
         subprocess.run(
             [npm, "ci", "--include=dev"],
             cwd=ROOT / "frontend",
@@ -84,8 +97,9 @@ def main():
             creationflags=hidden,
         )
     vite = ROOT / "frontend/node_modules/vite/bin/vite.js"
-    if not vite.exists():
-        raise RuntimeError("Frontend dependencies missing; restart without SKIP_SYNC=1")
+    missing = missing_frontend_dependencies()
+    if missing:
+        raise RuntimeError("Frontend installation is incomplete: " + ", ".join(missing))
     processes = []
     try:
         commands = [
@@ -118,6 +132,9 @@ def main():
         wait_ready(f"http://127.0.0.1:{port}/health/ready", processes)
         url = f"http://127.0.0.1:{frontend_port}"
         wait_ready(url, processes)
+        # HTML can return 200 even when Vite cannot compile an imported stylesheet.
+        wait_ready(url + "/src/main.tsx", processes)
+        wait_ready(url + "/src/index.css", processes)
         wait_ready(url + "/health/ready", processes)
         print(
             f"Dashboard: {url} | API: http://127.0.0.1:{port}/docs | Ctrl+C stops all services",

@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from spherex import __version__
-from spherex.config import Settings
+from spherex.config import DETECTOR_BANDS, Settings
 from spherex.errors import ArchiveError, QueueFull
 from spherex.models import (
     Capabilities,
@@ -22,6 +22,7 @@ from spherex.models import (
     Observation,
     SearchResult,
     SkySearch,
+    SpectrumResult,
 )
 from spherex.processing import validate_observations
 from spherex.providers import make_provider
@@ -35,17 +36,7 @@ ObservationId = Annotated[str, Path(pattern=r"^[a-f0-9]{24}$")]
 
 BANDS = [
     {"detector": i, "wavelength_min_um": lo, "wavelength_max_um": hi}
-    for i, (lo, hi) in enumerate(
-        [
-            (0.75, 1.09),
-            (1.10, 1.62),
-            (1.63, 2.41),
-            (2.42, 3.82),
-            (3.83, 4.41),
-            (4.42, 5.00),
-        ],
-        1,
-    )
+    for i, (lo, hi) in enumerate(DETECTOR_BANDS, 1)
 ]
 
 
@@ -76,7 +67,7 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", "Range"],
         expose_headers=["X-Request-ID", "Location", "Retry-After"],
     )
 
@@ -140,7 +131,8 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
             "provider": settings.provider,
             "synthetic": settings.provider == "demo",
             "collections": ["synthetic"] if settings.provider == "demo" else settings.collections,
-            "operations": ["cutout", "stack", "difference", "blink"],
+            "operations": ["cutout", "stack", "difference", "blink"]
+            + (["spectrum"] if settings.provider == "irsa" else []),
             "bands": BANDS,
             "coordinate_frame": "ICRS",
             "time_unit": "MJD",
@@ -234,6 +226,17 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
         if result is None:
             raise HTTPException(404, "Job not found")
         return result
+
+    @app.get("/api/v1/jobs/{job_id}/spectrum", response_model=SpectrumResult, tags=["jobs"])
+    def spectrum(request: Request, job_id: JobId):
+        store = request.app.state.store
+        result = store.job(job_id)
+        if result is None or result.status != "succeeded" or result.request.kind != "spectrum":
+            raise HTTPException(404, "Completed spectrum not found")
+        path = store.root / "artifacts" / job_id / str(result.attempts) / "spectrum.json"
+        if not path.is_file():
+            raise HTTPException(410, "Spectrum no longer available")
+        return SpectrumResult.model_validate_json(path.read_text(encoding="utf-8"))
 
     @app.get("/api/v1/jobs/{job_id}/artifacts/{name}", tags=["jobs"], response_class=FileResponse)
     def artifact(request: Request, job_id: JobId, name: str):

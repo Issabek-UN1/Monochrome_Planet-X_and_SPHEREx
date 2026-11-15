@@ -19,6 +19,9 @@ from spherex.worker import run_once
         {"ra": 0, "dec": 0, "limit": 501},
         {"ra": 0, "dec": 0, "radius_deg": 0},
         {"ra": 0, "dec": 0, "mjd_min": 20, "mjd_max": 10},
+        {"ra": 0, "dec": 0, "detector": 7},
+        {"ra": 0, "dec": 0, "detector": 0},
+        {"source": "neossat", "ra": 0, "dec": 0, "detector": 2},
     ],
 )
 def test_search_rejects_invalid_inputs(client, params):
@@ -51,6 +54,31 @@ def test_demo_filters(client):
     ).json()
     assert len(result["observations"]) == 1
     assert result["observations"][0]["detector"] == 1
+
+
+def test_detector_selection_is_cached_separately(client):
+    results = [
+        client.get("/api/v1/observations", params={"ra": 10, "dec": 20, "detector": d}).json()
+        for d in (1, 6)
+    ]
+    for detector, result in zip((1, 6), results, strict=True):
+        assert len(result["observations"]) == 4
+        assert {o["detector"] for o in result["observations"]} == {detector}
+        assert result["query"]["detector"] == detector
+        assert not result["cached"]
+
+
+def test_cross_origin_fits_range_preflight(client):
+    response = client.options(
+        "/api/v1/jobs/" + "0" * 32 + "/artifacts/result.fits",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "Range",
+        },
+    )
+    assert response.status_code == 200
+    assert "range" in response.headers["access-control-allow-headers"].lower()
 
 
 def test_unknown_observation_and_mixed_detectors(client, observations):

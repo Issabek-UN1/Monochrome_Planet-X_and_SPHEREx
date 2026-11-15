@@ -8,6 +8,7 @@ export type Job = components["schemas"]["Job"];
 export type Artifact = components["schemas"]["Artifact"];
 export type Capabilities = components["schemas"]["Capabilities"];
 export type TestTarget = components["schemas"]["TestTarget"];
+export type SpectrumResult = components["schemas"]["SpectrumResult"];
 
 export class ApiError extends Error {
   constructor(
@@ -66,6 +67,9 @@ export function createSpherexClient(baseUrl: string) {
     },
     getJob(id: string, signal?: AbortSignal): Promise<Job> {
       return request(`/api/v1/jobs/${encodeURIComponent(id)}`, { signal });
+    },
+    getSpectrum(id: string, signal?: AbortSignal): Promise<SpectrumResult> {
+      return request(`/api/v1/jobs/${encodeURIComponent(id)}/spectrum`, { signal });
     },
     /** Artifact URLs are relative to the backend; do not resolve against the frontend. */
     artifactUrl(artifact: Artifact): string {

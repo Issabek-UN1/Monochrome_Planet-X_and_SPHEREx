@@ -1,5 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
-import { Orbit } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Header } from './components/layout/Header'
 import { MODES, type Mode } from './components/layout/modes'
 import { TargetCarousel } from './components/carousel/TargetCarousel'
@@ -9,22 +8,10 @@ import { usePipeline } from './hooks/usePipeline'
 import { playTone, setAudioEnabled } from './utils/audio'
 import { StarfieldCanvas } from './components/3d/StarfieldCanvas'
 import { VaultDirectory } from './components/vault/VaultDirectory'
-
-const CelestialSphereCanvas = lazy(() =>
-  import('./components/3d/CelestialSphereCanvas').then((module) => ({
-    default: module.CelestialSphereCanvas,
-  })),
-)
-const SpectralLab = lazy(() =>
-  import('./components/spectral/SpectralLab').then((module) => ({
-    default: module.SpectralLab,
-  })),
-)
-const ApertureModal = lazy(() =>
-  import('./components/carousel/ApertureModal').then((module) => ({
-    default: module.ApertureModal,
-  })),
-)
+import { CelestialSphereCanvas } from './components/3d/CelestialSphereCanvas'
+import { SpectralLab } from './components/spectral/SpectralLab'
+import { ApertureModal } from './components/carousel/ApertureModal'
+import { I18nProvider, useI18n } from './i18n'
 
 function route() {
   const url = new URL(window.location.href),
@@ -60,7 +47,8 @@ function route() {
   return { target, mode }
 }
 
-export const App = () => {
+const AppContent = () => {
+  const { t } = useI18n()
   const [initial] = useState(route),
     [mode, setMode] = useState<Mode>(initial.mode),
     [target, setTarget] = useState(initial.target)
@@ -159,7 +147,7 @@ export const App = () => {
           document.getElementById('mission-main')?.focus()
         }}
       >
-        Skip to mission workspace
+        {t('app.skipLink')}
       </a>
       <div className="ambient-halo" aria-hidden="true" />
       <Header
@@ -176,42 +164,34 @@ export const App = () => {
         className={`mission-main mode-${mode}`}
         tabIndex={-1}
       >
-        <Suspense
-          fallback={
-            <div className="workspace-loading" role="status">
-              <Orbit size={34} />
-              <span>INITIALIZING WORKSPACE</span>
-            </div>
-          }
-        >
-          {mode === 'vault' && (
-            <div className="vault-mode mode-content" key="vault">
+        {mode === 'vault' && (
+          <div className="vault-mode mode-content" key="vault">
               {/* SECTION 1: HERO VIEWPORT (100vh) */}
               <section className="vault-hero-section" aria-label="Mission hero">
                 <div className="vault-layout">
                   <section className="vault-narrative">
                     <div className="eyebrow hero-stagger hero-stagger-1">
                       <span className="status-dot" />
-                      TIME-DOMAIN SKY EXPLORER
+                      {t('hero.eyebrow')}
                     </div>
                     <h1 className="hero-stagger hero-stagger-2">
-                      The sky
+                      {t('hero.titleLine1')}
                       <br />
-                      doesn't
+                      {t('hero.titleLine2')}
                       <br />
-                      <em>stand still.</em>
+                      <em>{t('hero.titleLine3')}</em>
                     </h1>
                     <p className="hero-description hero-stagger hero-stagger-3">
-                      A universe in motion.
+                      {t('hero.descLine1')}
                       <br />
-                      Find the signal between the moments.
+                      {t('hero.descLine2')}
                     </p>
                     <button
                       className="hero-cta-capsule hero-stagger hero-stagger-4"
                       onClick={scrollToSection2}
                       aria-label="Explore archive: scroll to instrument directory"
                     >
-                      EXPLORE ARCHIVE -&gt;
+                      {t('hero.cta')}
                     </button>
                   </section>
                   <section
@@ -289,21 +269,25 @@ export const App = () => {
               />
             </div>
           )}
-        </Suspense>
       </main>
       <footer className="mission-footer">
         <span>
           <i className={busy ? 'status-dot working' : 'status-dot'} />
-          {busy ? 'PIPELINE ACTIVE' : 'WORKSPACE READY'}
-          <span className="footer-divider">/</span>ARCHIVAL DATA · NOT LIVE
-          SPACECRAFT TELEMETRY
+          {busy ? t('footer.pipelineActive') : t('footer.workspaceReady')}
+          <span className="footer-divider">/</span>{t('footer.archivalData')}
         </span>
         <span>
-          MONOCHROME / SPACE APPS 2026 <span className="footer-divider">+</span>
-          ICRS EQUATORIAL
+          {t('footer.coords')}
         </span>
       </footer>
     </div>
   )
 }
+
+export const App = () => (
+  <I18nProvider>
+    <AppContent />
+  </I18nProvider>
+)
+
 export default App

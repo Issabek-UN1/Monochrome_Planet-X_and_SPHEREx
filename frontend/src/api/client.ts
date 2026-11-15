@@ -23,8 +23,8 @@ export const CURATED_TARGETS: EnhancedTarget[] = [
   {
     id: 'wise-0855',
     name: 'WISE 0855-0714',
-    ra: 133.7951,
-    dec: -7.2451,
+    ra: (8 + 55 / 60 + 10.831 / 3600) * 15,
+    dec: -(7 + 14 / 60 + 42.53 / 3600),
     radius_deg: 0.15,
     fov_deg: 0.3,
     coordinate_source:

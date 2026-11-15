@@ -80,7 +80,7 @@ export const StarfieldCanvas: React.FC<StarfieldCanvasProps> = ({
 
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
 
     let width = 0
     let height = 0
