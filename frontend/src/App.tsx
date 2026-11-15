@@ -150,6 +150,7 @@ export const App = () => {
 
   return (
     <div className={`mission-app ${grid ? 'hud-grid-enabled' : ''}`}>
+      {mode === 'vault' && <StarfieldCanvas scrollY={scrollY} />}
       <a
         className="skip-link"
         href="#mission-main"
@@ -185,7 +186,6 @@ export const App = () => {
         >
           {mode === 'vault' && (
             <div className="vault-mode mode-content" key="vault">
-              <StarfieldCanvas scrollY={scrollY} />
               {/* SECTION 1: HERO VIEWPORT (100vh) */}
               <section className="vault-hero-section" aria-label="Mission hero">
                 <div className="vault-layout">
