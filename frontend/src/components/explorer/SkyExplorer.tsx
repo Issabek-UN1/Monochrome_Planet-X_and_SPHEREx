@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Check,
   ChevronDown,
@@ -11,7 +11,11 @@ import {
   Terminal,
 } from 'lucide-react'
 import { CURATED_TARGETS, type EnhancedTarget } from '../../api/client'
-import type { JobRequest, Observation } from '@monochrome-spherex/api-client'
+import type {
+  JobRequest,
+  Observation,
+  SkySearch,
+} from '@monochrome-spherex/api-client'
 import { usePipeline, type Pipeline } from '../../hooks/usePipeline'
 import { Panel, ErrorNotice } from '../common/Panel'
 import { ArtifactViewer } from '../common/ArtifactViewer'
@@ -20,22 +24,42 @@ interface Props {
   initialTarget?: EnhancedTarget | null
   pipeline?: Pipeline
   onTarget?: (target: EnhancedTarget) => void
+  source?: SkySearch['source']
+  onSource?: (source: SkySearch['source']) => void
+  initialDetector?: number | null
+  initialSearch?: SkySearch | null
+  onPointing?: (query: SkySearch, fov: number, preset?: EnhancedTarget) => void
 }
-export const SkyExplorer = ({ initialTarget, pipeline, onTarget }: Props) => {
-  const [source, setSource] = useState<'spherex' | 'neossat'>(
+export const SkyExplorer = ({
+  initialTarget,
+  pipeline,
+  onTarget,
+  source: controlledSource,
+  onSource,
+  initialDetector,
+  initialSearch,
+  onPointing,
+}: Props) => {
+  const [localSource, setSource] = useState<'spherex' | 'neossat'>(
     pipeline?.result?.query.source ?? 'spherex',
   )
+  const source = controlledSource ?? localSource
   return (
     <ExplorerSession
       key={`${source}:${initialTarget?.id}:${initialTarget?.ra}:${initialTarget?.dec}`}
       initialTarget={initialTarget}
       source={source}
       onSource={(value) => {
+        if (value === source) return
         pipeline?.reset()
         setSource(value)
+        onSource?.(value)
       }}
       pipeline={pipeline}
       onTarget={onTarget}
+      initialDetector={initialDetector}
+      initialSearch={initialSearch}
+      onPointing={onPointing}
     />
   )
 }
@@ -49,9 +73,19 @@ function ExplorerSession({
   onSource,
   pipeline,
   onTarget,
+  initialDetector,
+  initialSearch,
+  onPointing,
 }: SessionProps) {
   const local = usePipeline(),
     p = pipeline ?? local
+  const previousQuery =
+    p.result?.query ??
+    (initialSearch?.source === source &&
+    initialSearch.ra === initialTarget?.ra &&
+    initialSearch.dec === initialTarget?.dec
+      ? initialSearch
+      : null)
   const [ra, setRa] = useState(
       p.result?.query.ra ?? initialTarget?.ra ?? 133.7951,
     ),
@@ -64,9 +98,25 @@ function ExplorerSession({
     [fov, setFov] = useState(initialTarget?.fov_deg ?? 0.1)
   const [size, setSize] = useState(256),
     [detector, setDetector] = useState('all')
+  const [queryDetector, setQueryDetector] = useState(
+    String(p.result?.query.detector ?? initialDetector ?? 'all'),
+  )
+  const [mjdMin, setMjdMin] = useState(String(previousQuery?.mjd_min ?? '')),
+    [mjdMax, setMjdMax] = useState(String(previousQuery?.mjd_max ?? ''))
   const [selection, setSelection] = useState<string[] | null>(null),
     [validation, setValidation] = useState<string | null>(null)
   const [showLog, setShowLog] = useState(true)
+  const [slowJob, setSlowJob] = useState<string | null>(null)
+  const queuedId = p.job?.status === 'queued' ? p.job.id : null
+  const queuedAt = p.job?.created_at
+  useEffect(() => {
+    if (!queuedId || queuedAt == null) return
+    const timer = setTimeout(
+      () => setSlowJob(queuedId),
+      Math.max(0, 30000 - (Date.now() - queuedAt * 1000)),
+    )
+    return () => clearTimeout(timer)
+  }, [queuedId, queuedAt])
   const observations = (p.result?.observations ?? []).filter(
     (item) => detector === 'all' || String(item.detector) === detector,
   )
@@ -85,7 +135,12 @@ function ExplorerSession({
     chosen.length > 0 &&
     chosen[0].detector != null &&
     chosen.every((item) => item.detector === chosen[0].detector)
-  function load(searchRa = ra, searchDec = dec, searchRadius = radius) {
+  function load(
+    searchRa = ra,
+    searchDec = dec,
+    searchRadius = radius,
+    preset?: EnhancedTarget,
+  ) {
     if (
       ![searchRa, searchDec, searchRadius].every(Number.isFinite) ||
       searchRa < 0 ||
@@ -98,16 +153,44 @@ function ExplorerSession({
       return
     }
     setValidation(null)
-    setSelection(null)
-    setDetector('all')
-    playTone('select')
-    void p.load({
+    const query: SkySearch = {
       source,
       ra: searchRa,
       dec: searchDec,
       radius_deg: searchRadius,
       limit: 100,
-    })
+      ...(source === 'spherex' && queryDetector !== 'all'
+        ? { detector: Number(queryDetector) }
+        : {}),
+      ...(mjdMin.trim() ? { mjd_min: Number(mjdMin) } : {}),
+      ...(mjdMax.trim() ? { mjd_max: Number(mjdMax) } : {}),
+    }
+    if (
+      [query.mjd_min, query.mjd_max].some(
+        (value) => value != null && (!Number.isFinite(value) || value < 0),
+      ) ||
+      (query.mjd_min != null &&
+        query.mjd_max != null &&
+        query.mjd_min > query.mjd_max)
+    ) {
+      setValidation(
+        'MJD limits must be non-negative, with the start before the end.',
+      )
+      return
+    }
+    setSelection(null)
+    setDetector('all')
+    playTone('select')
+    if (preset && !onPointing) onTarget?.(preset)
+    onPointing?.(
+      query,
+      preset?.fov_deg ??
+        (Number.isFinite(fov) && fov >= 0.005 && fov <= 0.5
+          ? fov
+          : (initialTarget?.fov_deg ?? 0.1)),
+      preset,
+    )
+    void p.load(query)
   }
   function launch(kind: JobRequest['kind']) {
     if (!Number.isFinite(fov) || fov < 0.005 || fov > 0.5) {
@@ -196,12 +279,11 @@ function ExplorerSession({
           <button
             key={target.id}
             onClick={() => {
-              onTarget?.(target)
               setRa(target.ra)
               setDec(target.dec)
               setRadius(target.radius_deg)
               setFov(target.fov_deg)
-              load(target.ra, target.dec, target.radius_deg)
+              load(target.ra, target.dec, target.radius_deg, target)
             }}
           >
             {target.name}
@@ -294,6 +376,44 @@ function ExplorerSession({
                   ))}
                 </select>
               </label>
+              <label htmlFor="query-detector">
+                Archive detector
+                <select
+                  id="query-detector"
+                  value={queryDetector}
+                  disabled={source === 'neossat'}
+                  onChange={(event) => setQueryDetector(event.target.value)}
+                >
+                  <option value="all">All detectors</option>
+                  {[1, 2, 3, 4, 5, 6].map((value) => (
+                    <option key={value} value={value}>
+                      D{value}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label htmlFor="mjd-min">
+                Start MJD (optional)
+                <input
+                  id="mjd-min"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={mjdMin}
+                  onChange={(event) => setMjdMin(event.target.value)}
+                />
+              </label>
+              <label htmlFor="mjd-max">
+                End MJD (optional)
+                <input
+                  id="mjd-max"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={mjdMax}
+                  onChange={(event) => setMjdMax(event.target.value)}
+                />
+              </label>
               <button
                 className="button-primary span-two"
                 type="submit"
@@ -305,6 +425,12 @@ function ExplorerSession({
                   : `QUERY ${source.toUpperCase()} OBSERVATIONS`}
               </button>
             </form>
+            {fov > 0.25 && (
+              <p className="panel-footnote">
+                Large fields need larger archive cutouts and can take longer to
+                process.
+              </p>
+            )}
           </Panel>
           <Panel
             number="02"
@@ -313,7 +439,7 @@ function ExplorerSession({
           >
             <div className="table-controls">
               <label htmlFor="detector-filter">
-                Detector
+                Display detector
                 <select
                   id="detector-filter"
                   value={detector}
@@ -447,6 +573,12 @@ function ExplorerSession({
                   <button onClick={p.resume}>Resume polling</button>
                 )}
             </div>
+            {queuedId && slowJob === queuedId && (
+              <p className="panel-footnote">
+                Waiting for processing. Check that the worker is running with
+                the same data directory and provider as the API.
+              </p>
+            )}
           </Panel>
           <Panel
             number="04"

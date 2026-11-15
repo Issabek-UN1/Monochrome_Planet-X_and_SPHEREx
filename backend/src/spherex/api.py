@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from spherex import __version__
-from spherex.config import Settings
+from spherex.config import DETECTOR_BANDS, Settings
 from spherex.errors import ArchiveError, QueueFull
 from spherex.models import (
     Capabilities,
@@ -35,17 +35,7 @@ ObservationId = Annotated[str, Path(pattern=r"^[a-f0-9]{24}$")]
 
 BANDS = [
     {"detector": i, "wavelength_min_um": lo, "wavelength_max_um": hi}
-    for i, (lo, hi) in enumerate(
-        [
-            (0.75, 1.09),
-            (1.10, 1.62),
-            (1.63, 2.41),
-            (2.42, 3.82),
-            (3.83, 4.41),
-            (4.42, 5.00),
-        ],
-        1,
-    )
+    for i, (lo, hi) in enumerate(DETECTOR_BANDS, 1)
 ]
 
 
@@ -76,7 +66,7 @@ def create_app(settings: Settings | None = None, provider=None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", "Range"],
         expose_headers=["X-Request-ID", "Location", "Retry-After"],
     )
 

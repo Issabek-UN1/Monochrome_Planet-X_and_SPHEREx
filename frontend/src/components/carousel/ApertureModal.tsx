@@ -206,7 +206,9 @@ export function ApertureModal({ target, pipeline: p }: Props) {
   const [mode, setMode] = useState<CompareMode>('wipe'),
     [speed, setSpeed] = useState(500),
     [zoom, setZoom] = useState(1)
-  const [detector, setDetector] = useState('auto'),
+  const [detector, setDetector] = useState(
+      String(p.result?.query.detector ?? 'auto'),
+    ),
     [referenceIndex, setReferenceIndex] = useState(0),
     [scienceIndex, setScienceIndex] = useState(-1)
   const [localError, setLocalError] = useState<string | null>(null),
@@ -234,10 +236,15 @@ export function ApertureModal({ target, pipeline: p }: Props) {
     (value): value is string => !!value,
   )
   const matching = (job: Job) =>
+    ids.length === 2 &&
+    ids[0] !== ids[1] &&
     job.request.source === 'spherex' &&
     job.request.ra === target.ra &&
     job.request.dec === target.dec &&
+    job.request.fov_deg === target.fov_deg &&
     job.request.observation_ids.length === 2 &&
+    (job.request.kind !== 'difference' ||
+      job.request.observation_ids.every((id, index) => id === ids[index])) &&
     ids.every((id) => job.request.observation_ids.includes(id))
   const blink = [...p.completed]
     .reverse()
@@ -347,7 +354,6 @@ export function ApertureModal({ target, pipeline: p }: Props) {
               className="button-primary full-width"
               disabled={p.busy}
               onClick={() => {
-                setDetector('auto')
                 setReferenceIndex(0)
                 setScienceIndex(-1)
                 setLocalError(null)
@@ -356,6 +362,9 @@ export function ApertureModal({ target, pipeline: p }: Props) {
                   ra: target.ra,
                   dec: target.dec,
                   radius_deg: 0.001,
+                  ...(detector !== 'auto'
+                    ? { detector: Number(detector) }
+                    : {}),
                   limit: 100,
                 })
               }}
@@ -378,13 +387,17 @@ export function ApertureModal({ target, pipeline: p }: Props) {
                   }}
                 >
                   <option value="auto">Auto / first available</option>
-                  {detectors.map((value) => (
+                  {[1, 2, 3, 4, 5, 6].map((value) => (
                     <option key={value} value={value}>
                       D{value}
                     </option>
                   ))}
                 </select>
               </label>
+              <p className="panel-footnote">
+                Choose a detector, then load observations to query its full
+                archive sample.
+              </p>
               <label htmlFor="reference-epoch">
                 REFERENCE / EARLIER
                 <select

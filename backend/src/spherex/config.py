@@ -4,6 +4,15 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DETECTOR_BANDS = [
+    (0.75, 1.09),
+    (1.10, 1.62),
+    (1.63, 2.41),
+    (2.42, 3.82),
+    (3.83, 4.41),
+    (4.42, 5.00),
+]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SPHEREX_", env_file=".env", extra="ignore")
@@ -22,7 +31,7 @@ class Settings(BaseSettings):
     )
     data_dir: Path = Path("data")
     search_ttl_seconds: int = Field(900, ge=0)
-    http_timeout_seconds: float = Field(60, gt=0, le=300)
+    http_timeout_seconds: float = Field(120, gt=0, le=300)
     max_download_bytes: int = Field(64 * 1024 * 1024, ge=1024)
     max_pending_jobs: int = Field(100, ge=1)
     lease_seconds: int = Field(1800, ge=60)

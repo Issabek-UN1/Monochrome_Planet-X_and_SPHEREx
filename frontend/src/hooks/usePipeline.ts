@@ -18,6 +18,7 @@ export function usePipeline() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const abort = useRef<AbortController | null>(null)
+  const pollAbort = useRef<AbortController | null>(null)
   const [pollRevision, setPollRevision] = useState(0)
   const log = useCallback(
     (text: string) =>
@@ -29,6 +30,7 @@ export function usePipeline() {
   )
   const reset = useCallback(() => {
     abort.current?.abort()
+    pollAbort.current?.abort()
     setResult(null)
     setJob(null)
     setCompleted([])
@@ -36,10 +38,17 @@ export function usePipeline() {
     setEvents([])
     setBusy(false)
   }, [])
-  useEffect(() => () => abort.current?.abort(), [])
+  useEffect(
+    () => () => {
+      abort.current?.abort()
+      pollAbort.current?.abort()
+    },
+    [],
+  )
   const load = useCallback(
     async (query: SkySearch) => {
       abort.current?.abort()
+      pollAbort.current?.abort()
       const controller = new AbortController()
       abort.current = controller
       setBusy(true)
@@ -81,6 +90,13 @@ export function usePipeline() {
     ) => {
       if (!result) return
       const source = result.query.source
+      const selected = result.observations.filter((item) =>
+        ids.includes(item.id),
+      )
+      if (selected.length !== ids.length || new Set(ids).size !== ids.length) {
+        setError('Selection is no longer available. Repeat the search.')
+        return
+      }
       if (
         ids.length > 12 ||
         !ids.length ||
@@ -97,7 +113,18 @@ export function usePipeline() {
         setError('NEOSSat supports cutout and blink only.')
         return
       }
+      if (
+        ['stack', 'difference'].includes(kind) &&
+        (selected[0]?.detector == null ||
+          selected.some((item) => item.detector !== selected[0].detector))
+      ) {
+        setError(
+          'Choose observations from one known detector for stack/difference.',
+        )
+        return
+      }
       abort.current?.abort()
+      pollAbort.current?.abort()
       const controller = new AbortController()
       abort.current = controller
       setBusy(true)
@@ -139,6 +166,7 @@ export function usePipeline() {
   useEffect(() => {
     if (!jobId) return
     const controller = new AbortController()
+    pollAbort.current = controller
     let timer: ReturnType<typeof setTimeout> | undefined
     let previous = '',
       attempts = 0

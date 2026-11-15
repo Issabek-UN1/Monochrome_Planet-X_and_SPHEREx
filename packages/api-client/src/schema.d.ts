@@ -363,6 +363,8 @@ export interface components {
              * @default 0.05
              */
             radius_deg: number;
+            /** Detector */
+            detector?: number | null;
             /** Mjd Min */
             mjd_min?: number | null;
             /** Mjd Max */
@@ -649,6 +651,7 @@ export interface operations {
                 ra: number;
                 dec: number;
                 radius_deg?: number;
+                detector?: number | null;
                 mjd_min?: number | null;
                 mjd_max?: number | null;
                 wavelength_min_um?: number | null;

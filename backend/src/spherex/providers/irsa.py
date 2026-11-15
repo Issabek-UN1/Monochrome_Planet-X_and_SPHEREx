@@ -8,7 +8,7 @@ from urllib.parse import unquote, urlsplit
 
 import httpx
 
-from spherex.config import Settings
+from spherex.config import DETECTOR_BANDS, Settings
 from spherex.errors import ArchiveError
 from spherex.models import JobRequest, Observation, SearchResult, SkySearch
 
@@ -47,14 +47,28 @@ def parse_csv(body: bytes, query: SkySearch, collections: list[str]) -> SearchRe
             raise ArchiveError("Archive did not return the expected SIA CSV columns")
         observations = []
         seen = set()
+        row_count = 0
         for row in reader:
+            row_count += 1
             url = validate_data_url(row.get("access_url", ""))
             identifier = hashlib.sha256(url.encode()).hexdigest()[:24]
             if identifier in seen:
                 continue
             seen.add(identifier)
             match = re.search(r"D([1-6])_", url)
+            detector = int(match[1]) if match else None
+            if query.detector is not None and detector != query.detector:
+                continue
             lo, hi = number(row.get("em_min")), number(row.get("em_max"))
+            if query.detector is not None:
+                if query.wavelength_min_um is not None and (
+                    hi is None or hi * 1e6 < query.wavelength_min_um
+                ):
+                    continue
+                if query.wavelength_max_um is not None and (
+                    lo is None or lo * 1e6 > query.wavelength_max_um
+                ):
+                    continue
             observations.append(
                 Observation(
                     id=identifier,
@@ -68,14 +82,14 @@ def parse_csv(body: bytes, query: SkySearch, collections: list[str]) -> SearchRe
                     mjd_end=number(row.get("t_max")),
                     wavelength_min_um=lo * 1e6 if lo is not None else None,
                     wavelength_max_um=hi * 1e6 if hi is not None else None,
-                    detector=int(match[1]) if match else None,
+                    detector=detector,
                 )
             )
         observations.sort(key=lambda o: (o.mjd_start is None, o.mjd_start or 0, o.id))
         return SearchResult(
             query=query,
             observations=observations[: query.limit],
-            possibly_truncated=len(observations) >= query.limit,
+            possibly_truncated=row_count >= query.limit,
             warnings=[
                 "SIA matches image footprints; a target can fall outside "
                 "an individual image. Results are not a complete time series "
@@ -133,10 +147,22 @@ class IRSAProvider:
             lo = query.mjd_min if query.mjd_min is not None else "-Inf"
             hi = query.mjd_max if query.mjd_max is not None else "+Inf"
             params.append(("TIME", f"{lo} {hi}"))
-        if query.wavelength_min_um is not None or query.wavelength_max_um is not None:
-            lo = query.wavelength_min_um * 1e-6 if query.wavelength_min_um is not None else "-Inf"
-            hi = query.wavelength_max_um * 1e-6 if query.wavelength_max_um is not None else "+Inf"
-            params.append(("BAND", f"{lo} {hi}"))
+        lo, hi = query.wavelength_min_um, query.wavelength_max_um
+        if query.detector is not None:
+            band_lo, band_hi = DETECTOR_BANDS[query.detector - 1]
+            # Real calibrated band edges overlap adjacent detectors. A full nominal
+            # interval can exhaust MAXREC on those neighbours before finding this
+            # detector. Use an interior wavelength, then verify detector and any
+            # requested wavelength overlap against the returned metadata above.
+            params.append(("BAND", str((band_lo + band_hi) / 2 * 1e-6)))
+        elif lo is not None or hi is not None:
+            params.append(
+                (
+                    "BAND",
+                    f"{lo * 1e-6 if lo is not None else '-Inf'} "
+                    f"{hi * 1e-6 if hi is not None else '+Inf'}",
+                )
+            )
         body = await self._get(SIA_URL, params, 8 * 1024 * 1024)
         return parse_csv(body, query, self.settings.collections)
 
@@ -146,6 +172,6 @@ class IRSAProvider:
         url = validate_data_url(observation.access_url)
         return await self._get(
             url,
-            {"center": f"{request.ra},{request.dec}", "size": str(request.fov_deg)},
+            {"center": f"{request.ra},{request.dec}d", "size": str(request.fov_deg)},
             self.settings.max_download_bytes,
         )

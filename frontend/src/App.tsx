@@ -15,6 +15,7 @@ import { usePipeline } from './hooks/usePipeline'
 import { formatDec, formatRA } from './utils/astronomy'
 import { playTone, setAudioEnabled } from './utils/audio'
 import { useTextScramble } from './hooks/useTextScramble'
+import type { SkySearch } from '@monochrome-spherex/api-client'
 const CelestialSphereCanvas = lazy(() =>
   import('./components/3d/CelestialSphereCanvas').then((module) => ({
     default: module.CelestialSphereCanvas,
@@ -58,15 +59,33 @@ function route() {
       description: 'Coordinates supplied in the URL.',
       notes: 'User-supplied field centre; no catalog classification.',
     }
+  const fov = Number(url.searchParams.get('fov')),
+    radius = Number(url.searchParams.get('radius')),
+    band = /^(?:SPHEREx-)?D?([1-6])$/i.exec(url.searchParams.get('band') ?? ''),
+    source: SkySearch['source'] =
+      url.searchParams.get('source') === 'neossat' ? 'neossat' : 'spherex'
+  target = {
+    ...target,
+    ...(fov >= 0.005 && fov <= 0.5 ? { fov_deg: fov } : {}),
+    ...(radius > 0 && radius <= 2 ? { radius_deg: radius } : {}),
+  }
   const mode =
     MODES.find((item) => item.id === url.hash.slice(1))?.id ??
     (custom ? 'explorer' : 'vault')
-  return { target, mode }
+  return {
+    target,
+    mode,
+    source,
+    detector: source === 'spherex' && band ? Number(band[1]) : null,
+  }
 }
 export const App = () => {
   const [initial] = useState(route),
     [mode, setMode] = useState<Mode>(initial.mode),
     [target, setTarget] = useState(initial.target)
+  const [source, setSource] = useState(initial.source),
+    [detector, setDetector] = useState(initial.detector)
+  const [lastSearch, setLastSearch] = useState<SkySearch | null>(null)
   const [sound, setSound] = useState(false),
     [grid, setGrid] = useState(true),
     [semiMajor, setSemiMajor] = useState(600),
@@ -74,7 +93,13 @@ export const App = () => {
     [animateOrbit, setAnimateOrbit] = useState(true)
   const pipeline = usePipeline()
   const decodedName = useTextScramble(target.name, 320)
-  function updateRoute(nextMode: Mode, nextTarget = target) {
+  function updateRoute(
+    nextMode: Mode,
+    nextTarget = target,
+    nextSource = source,
+    nextDetector = detector,
+    replace = false,
+  ) {
     const url = new URL(window.location.href)
     url.hash = nextMode
     if (nextTarget.id === 'custom') {
@@ -86,7 +111,37 @@ export const App = () => {
       url.searchParams.delete('ra')
       url.searchParams.delete('dec')
     }
-    window.history.pushState(null, '', url)
+    url.searchParams.set('fov', String(nextTarget.fov_deg))
+    url.searchParams.set('radius', String(nextTarget.radius_deg))
+    url.searchParams.set('source', nextSource)
+    if (nextSource === 'spherex' && nextDetector != null)
+      url.searchParams.set('band', `SPHEREx-D${nextDetector}`)
+    else url.searchParams.delete('band')
+    window.history[replace ? 'replaceState' : 'pushState'](null, '', url)
+  }
+  function pointAt(query: SkySearch, fov: number, preset?: EnhancedTarget) {
+    setLastSearch(query)
+    const next = preset
+      ? { ...preset, radius_deg: query.radius_deg, fov_deg: fov }
+      : query.ra === target.ra && query.dec === target.dec
+        ? { ...target, radius_deg: query.radius_deg, fov_deg: fov }
+        : {
+            ...target,
+            id: 'custom',
+            name: 'Custom ICRS field',
+            category: 'Custom Field' as const,
+            ra: query.ra,
+            dec: query.dec,
+            radius_deg: query.radius_deg,
+            fov_deg: fov,
+            description: 'User-supplied ICRS field centre.',
+            notes: 'No proper-motion propagation or catalog classification.',
+            coordinate_source: window.location.href,
+          }
+    setTarget(next)
+    setSource(query.source)
+    setDetector(query.detector ?? null)
+    updateRoute(mode, next, query.source, query.detector ?? null, !preset)
   }
   function selectMode(next: Mode) {
     playTone('hover')
@@ -107,11 +162,21 @@ export const App = () => {
       const next = route()
       setMode(next.mode)
       setTarget(next.target)
-      resetPipeline()
+      setSource(next.source)
+      setDetector(next.detector)
+      if (
+        next.target.ra !== target.ra ||
+        next.target.dec !== target.dec ||
+        next.target.radius_deg !== target.radius_deg ||
+        next.target.fov_deg !== target.fov_deg ||
+        next.source !== source ||
+        next.detector !== detector
+      )
+        resetPipeline()
     }
     window.addEventListener('popstate', back)
     return () => window.removeEventListener('popstate', back)
-  }, [resetPipeline])
+  }, [resetPipeline, target, source, detector])
   useEffect(
     () => () => {
       setAudioEnabled(false)
@@ -335,32 +400,64 @@ export const App = () => {
               <ApertureModal
                 key={target.id}
                 target={target}
-                pipeline={pipeline}
+                pipeline={{
+                  ...pipeline,
+                  load: (query) => {
+                    pointAt(query, target.fov_deg)
+                    return pipeline.load(query)
+                  },
+                }}
               />
             </>
           )}
           {mode === 'spectral' && <SpectralLab initialTarget={target} />}
           {mode === 'explorer' && (
             <SkyExplorer
-              key={target.id}
               initialTarget={target}
               pipeline={pipeline}
               onTarget={selectTarget}
+              source={source}
+              initialDetector={detector}
+              initialSearch={lastSearch}
+              onSource={(next) => {
+                setSource(next)
+                const nextDetector = next === 'neossat' ? null : detector
+                setDetector(nextDetector)
+                updateRoute(mode, target, next, nextDetector)
+              }}
+              onPointing={pointAt}
             />
           )}
         </Suspense>
       </main>
-      <footer className="mission-footer">
-        <span>
-          <i className={busy ? 'status-dot working' : 'status-dot'} />
-          {busy ? 'PIPELINE ACTIVE' : 'WORKSPACE READY'}
-          <span className="footer-divider">/</span>ARCHIVAL DATA · NOT LIVE
-          SPACECRAFT TELEMETRY
-        </span>
-        <span>
-          MONOCHROME / SPACE APPS 2026 <span className="footer-divider">+</span>
-          ICRS EQUATORIAL
-        </span>
+      <footer>
+        <div className="mission-footer">
+          <span>
+            <i className={busy ? 'status-dot working' : 'status-dot'} />
+            {busy ? 'PIPELINE ACTIVE' : 'WORKSPACE READY'}
+            <span className="footer-divider">/</span>ARCHIVAL DATA · NOT LIVE
+            SPACECRAFT TELEMETRY
+          </span>
+          <span>
+            MONOCHROME / SPACE APPS 2026{' '}
+            <span className="footer-divider">+</span>
+            ICRS EQUATORIAL
+          </span>
+        </div>
+        <p className="data-attribution">
+          This tool makes use of data products from the Spectro-Photometer for
+          the History of the Universe, Epoch of Reionization and Ices Explorer
+          (SPHEREx), which is a joint project of the Jet Propulsion Laboratory
+          and the California Institute of Technology, and is funded by the
+          National Aeronautics and Space Administration.{' '}
+          <a
+            href="https://irsa.ipac.caltech.edu/Missions/spherex.html"
+            target="_blank"
+            rel="noreferrer"
+          >
+            SPHEREx / IRSA
+          </a>
+        </p>
       </footer>
     </div>
   )

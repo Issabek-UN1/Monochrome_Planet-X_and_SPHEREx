@@ -315,6 +315,24 @@
             }
           },
           {
+            "name": "detector",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 6,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Detector"
+            }
+          },
+          {
             "name": "mjd_min",
             "in": "query",
             "required": false,
@@ -1310,6 +1328,19 @@
             "exclusiveMinimum": 0.0,
             "title": "Radius Deg",
             "default": 0.05
+          },
+          "detector": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 6.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detector"
           },
           "mjd_min": {
             "anyOf": [

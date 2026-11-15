@@ -2269,3 +2269,14 @@ button:active:not(:disabled) {
   color: var(--cyan);
   text-decoration: underline;
 }
+.data-attribution {
+  margin: 0;
+  padding: 16px clamp(16px, 4vw, 64px);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  border-top: 1px solid var(--line);
+}
+.data-attribution a {
+  color: var(--cyan);
+}

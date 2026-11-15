@@ -5,6 +5,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 
+from spherex.config import DETECTOR_BANDS
 from spherex.errors import ArchiveError
 from spherex.models import JobRequest, Observation, SearchResult, SkySearch
 
@@ -15,17 +16,9 @@ class DemoProvider:
     async def search(self, query: SkySearch) -> SearchResult:
         observations = []
         for epoch in range(4):
-            for detector, (lo, hi) in enumerate(
-                [
-                    (0.75, 1.09),
-                    (1.10, 1.62),
-                    (1.63, 2.41),
-                    (2.42, 3.82),
-                    (3.83, 4.41),
-                    (4.42, 5.00),
-                ],
-                1,
-            ):
+            for detector, (lo, hi) in enumerate(DETECTOR_BANDS, 1):
+                if query.detector is not None and detector != query.detector:
+                    continue
                 mjd = 61000.0 + epoch * 90
                 if query.mjd_min is not None and mjd < query.mjd_min:
                     continue

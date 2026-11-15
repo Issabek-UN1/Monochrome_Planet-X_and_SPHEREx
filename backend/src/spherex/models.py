@@ -17,6 +17,7 @@ class SkySearch(StrictModel):
     ra: RA
     dec: Dec
     radius_deg: Annotated[Finite, Field(gt=0, le=2)] = 0.05
+    detector: int | None = Field(None, ge=1, le=6)
     mjd_min: Annotated[Finite, Field(ge=0)] | None = None
     mjd_max: Annotated[Finite, Field(ge=0)] | None = None
     wavelength_min_um: Annotated[Finite, Field(ge=0.75, le=5)] | None = None
@@ -25,6 +26,8 @@ class SkySearch(StrictModel):
 
     @model_validator(mode="after")
     def ordered_intervals(self):
+        if self.source == "neossat" and self.detector is not None:
+            raise ValueError("Detector selection is only supported for SPHEREx")
         for lo, hi in [
             (self.mjd_min, self.mjd_max),
             (self.wavelength_min_um, self.wavelength_max_um),
